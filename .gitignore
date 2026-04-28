@@ -1,0 +1,24 @@
+# OS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Node / Bun
+node_modules/
+*.log
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Gas City machine-local workspace identity
+.gc/site.toml
+
+# SQLite runtime artifacts
+*.db-journal
+*.db-shm
+*.db-wal
