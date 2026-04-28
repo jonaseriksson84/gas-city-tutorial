@@ -1,0 +1,5 @@
+[workspace]
+provider = "claude"
+
+[[rigs]]
+name = "rss-reader"

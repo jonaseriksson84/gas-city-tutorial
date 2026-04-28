@@ -18,6 +18,10 @@ node_modules/
 # Gas City machine-local workspace identity
 .gc/site.toml
 
+# Gas City installs Claude Code skills as absolute-path symlinks during `gc init`.
+# These regenerate on a fresh `gc init` and would dangle on any clone, so we untrack them.
+city/.claude/skills/
+
 # SQLite runtime artifacts
 *.db-journal
 *.db-shm
