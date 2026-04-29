@@ -6,6 +6,11 @@ schema = 2
 name = "mayor"
 prompt_template = "agents/mayor/prompt.template.md"
 
+[[agent]]
+name = "backend"
+dir = "rss-reader"
+prompt_template = "agents/backend/prompt.template.md"
+
 [[named_session]]
 template = "mayor"
 mode = "always"
