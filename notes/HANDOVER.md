@@ -23,10 +23,42 @@ Stack: Bun + Hono + `bun:sqlite` + `hono/html` + HTMX + TypeScript. Five agents 
 
 ## Immediate next step
 
-Test run for Part 3 finished cleanly. Open items:
+Part 3 finished and committed (`4adf6f9`, tagged `chapter-3`). User paused before Part 4. When picking up, the user is choosing whether to start Part 4 (no commands run yet for it).
 
-1. **Commit + tag the parent repo for chapter-3** (my responsibility). About to do this in the next turn.
-2. **Plan Part 4** ("The review loop"). Locked design: introduce `reviewer` polecat + optional Codex provider swap. Real-world hook: backend's completion mail flagged entity-encoded titles in HN ingest data. Use that defect as the chapter's review-loop demo. Reviewer reviews the just-shipped feature, files the bug bead, mayor routes the fix to backend (or frontend), reviewer re-reviews. Tight, concrete chapter shape.
+## Part 4 plan (sketch agreed with user, open design questions remain)
+
+**Concept payload (per locked design):** inter-agent communication (specialists to/from reviewer, not just via mayor), optional Codex provider swap.
+
+**Hands-on bug:** the entity-encoded-titles defect backend flagged at the end of Part 3. Real bug already in the running app — concrete target for the review loop. Backend's completion mail: "observed entity-encoded titles in ingest data." HN RSS includes `&amp;` etc. and we store it raw, so the rendered titles show literal `&amp;`.
+
+**New agent:** `reviewer` (polecat, rig-scoped). Reviews shipped work, writes findings into bead notes, either closes approving or files a fix bead.
+
+**Reader writes (configs):**
+- `gc agent add --name reviewer --dir rss-reader` + `[[agent]]` block in pack.toml (familiar two-step from Parts 2 and 3)
+- `agents/reviewer/prompt.template.md` ("reader-writes-from-bullets" pedagogy level per design)
+- Update mayor's prompt: after a feature lands, mayor slings a review bead to reviewer instead of declaring victory.
+
+**Chapter flow:**
+1. Reviewer materializes, reads the rendered page + recent commits, notices entity-encoded titles.
+2. Reviewer files a fix bead (e.g. `rr-decode-titles`), mails mayor.
+3. Mayor routes the fix bead.
+4. Backend (or frontend, see open question) fixes, commits, closes.
+5. Reviewer re-reviews and approves. Loop closes.
+
+**Shape check (end-of-chapter):**
+- Browser at `localhost:3000/` shows titles rendered correctly (`Foo & Bar` not `Foo &amp; Bar`)
+- Two new commits in rig (fix + optional test)
+- Two new closed beads (review bead, fix bead)
+- Reviewer notes captured in bead history
+
+**Open design questions to settle before running Part 4:**
+1. **Mayor in the middle vs direct specialist↔reviewer mail.** Design says "inter-agent communication"; question is whether we *use* it as the primary pattern or keep mayor as router. My lean: mayor stays as router for *work routing* but reviewer mails specialists directly with review questions ("did you mean X?") and CCs mayor. That demonstrates the new pattern without removing the mayor's coordination role.
+2. **Fix lane: backend vs frontend.** Decode at ingest (backend, single decode, raw-stays-clean DB) or at render (frontend, DB stays as-fed). My lean: backend. Defensible either way; worth a paragraph in the chapter.
+3. **Custom formula in this chapter, yes or no.** Pedagogy curve says reader writes more configs at this point. A small formula (`mol-review-and-fix`) is realistic but adds chapter weight on top of the new agent + new pattern. My lean: no, defer formula authoring to Part 5 or 6 to keep Part 4 tight.
+
+Confirm these three before running, then proceed.
+
+**Estimated cost:** smaller than Part 3. ~15-25 min elapsed, ~$0.50-1 in API.
 
 ## What just happened (Part 3 outcome)
 
@@ -69,6 +101,12 @@ Test run for Part 3 finished cleanly. Open items:
 - Me: git operations (init, add, commit, tag, rm --cached, amend), notes files, memory, read-only Bash inspection.
 - Default to handing the keyboard to the user; one-off "you do it" authorizations do not become standing permission.
 
+**v1.0.0-specific issues to keep in mind:** User is on `gc 1.0.0` (Homebrew, built-from-source on 2026-04-27 12:30:47, latest released tag is `v1.0.0` from 2026-04-21). Several relevant fixes landed on `main` after this build but no new release tag has been cut, so `brew upgrade` does not help.
+- **Dashboard is unusable** (request flood, [GH#1168](https://github.com/gastownhall/gascity/issues/1168), closed 2026-04-28). Fixes: [PR#1339](https://github.com/gastownhall/gascity/pull/1339) and [PR#1376](https://github.com/gastownhall/gascity/pull/1376) merged 2026-04-27 evening. Workaround: `bash bin/overview.sh` (committed in repo); use it standalone or under `watch -n 3`.
+- **GC#1209** (open) — beads layer `ApplyEvent("bead.updated")` writes unconditionally on every event. Cosmetic noise in our small city; not blocking.
+- **GH#1293 / GH#1177** (both open) — `gc status` and `gc session list` slow paths. Not yet bitten us hard at this scale.
+- **Re-check the dashboard after any `brew upgrade` once a v1.0.x newer than 2026-04-27 lands.** If usable, switch the chapter to recommend it.
+
 **Bug GH#1232: `bd create` fails on every write path** with `database not initialized: issue_prefix config is missing`. Already worked around for the city `hq` DB and the rig `rr` DB. If we hit it again on a new database (e.g. when adding a new rig), apply the same direct dolt SQL fix:
 
 ```bash
@@ -95,9 +133,17 @@ Do **not** use `gc mail send --notify` (writes to stdin, sits in buffer when idl
 
 **`gc agent add --dir <rig>` does NOT update pack.toml.** It scaffolds `agents/<name>/{agent.toml,prompt.template.md}` only. The human must add the `[[agent]]` block with `dir = "rss-reader"` to `pack.toml` manually. The dir field in `agent.toml` does NOT propagate into the resolved config in our setup. Per chapter design, the chapter teaches both steps; do not bypass `gc agent add`.
 
-**`gc reload` is a no-op for prompt template changes.** Only re-reads TOML configs. Prompt files re-read on session materialization. Do not tell the user to reload after editing a prompt.
+**Pre-route entire bead chains; do not orchestrate manual nudges.** `gc sling <agent> <bead-id>` stamps `gc.routed_to=<agent>` on the bead. The reconciler auto-spawns/wakes the matching polecat when the bead becomes ready (GC#1126 merged 2026-04-23). For multi-step chains: create all beads, wire deps with `bd dep add`, sling all of them upfront with `--on mol-do-work` (slinging blocked beads is fine; the metadata is set, the bead waits). After that the orchestrator (mayor) is hands-off. Detailed memory at `project_routed_to_auto_dispatch.md`. **Do not** propose "wait and watch" mayor loops.
 
-**`gc reload` may say "controller is busy"** during a reconcile tick. Retry in a few seconds.
+**Slinging with `--on <formula>` creates a convoy + a molecule wrapper around the work bead.** When inspecting `bd list`, you will see auto-convoys (`sling-<bead-id>`) and `mol-do-work` molecules with sub-task beads, alongside the actual feature task bead. This is bookkeeping noise, not bugs. Worth a sidebar in the chapter.
+
+**`gc mail inbox` syntax: positional, not `--to`.** `gc mail inbox mayor` is right; `gc mail inbox --to mayor` errors with "unknown flag." Same for other mail subcommands; check `--help` rather than guessing.
+
+**`watch` + `git log` needs `--no-pager`.** Otherwise git seizes the TTY and `watch` becomes unusable. The `bin/overview.sh` helper uses `git --no-pager log`.
+
+**`gc reload` is mostly a no-op (and that is correct).** The controller's fsnotify watcher (GH#926) picks up edits to `pack.toml`, `agent.toml`, and prompt templates within milliseconds and applies them at the next reconciler tick. By the time you call `gc reload`, the in-memory config matches disk and reload reports "No config changes detected." That is a positive signal, not a failure. Reload matters only when the watcher missed something (CI, sandbox, environment vars). Long-running named sessions (mayor) still need an explicit restart to pick up prompt edits — use `gc handoff --target mayor "<subject>" "<body>"` (kills + reconciler restarts + first task waiting in inbox).
+
+**`gc reload` may say "controller is busy"** during a reconcile tick. Retry in a few seconds. Buffered-channel fix in [GH#1127](https://github.com/gastownhall/gascity/issues/1127), still open as of build cutoff.
 
 **`gc mail reply` requires `-s` subject** (does not auto-Re from parent). The mayor learned this the hard way; the strict-delegator prompt now lists the exact reply syntax.
 
