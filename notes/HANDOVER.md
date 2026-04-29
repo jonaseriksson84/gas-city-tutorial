@@ -16,23 +16,29 @@ Stack: Bun + Hono + `bun:sqlite` + `hono/html` + HTMX + TypeScript. Five agents 
 |---|---|---|
 | 0 Setup | `chapter-0` | Done. City + rig registered. |
 | 1 First contact | `chapter-1` | Done. Strict-delegator mayor, first mail+reply round-trip. Mayor created scaffold bead `rr-lhv`. |
-| 2 Building the bones | not yet tagged | **Test run done, awaiting commit + tag.** Backend polecat materialized (`rss-reader/backend-1`), built scaffold (Bun + Hono + bun:sqlite + `/health`), committed in rig (`6f9d267`), closed `rr-lhv`. |
-| 3 Specialists at work | not yet started | Next chapter introduces `frontend` and `dba` agents and the first "real" feature work. |
-| 4-6 | not yet started | |
+| 2 Building the bones | `chapter-2` | Done. Backend polecat materialized, built scaffold, committed in rig (`6f9d267`), closed `rr-lhv`. |
+| 3 Specialists at work | not yet tagged | **Test run done, awaiting commit + tag.** dba and frontend registered, mayor's prompt updated to pre-route chains, feature delivered (HN-style index from hardcoded RSS feed). Three feature beads closed; four chapter commits in rig (scaffold, schema, ingest, render). Defect flagged for Part 4: entity-encoded titles in HN ingest. |
+| 4 The review loop | not yet started | Plan: introduce `reviewer` polecat, fix the entity-encoded-titles defect via the review loop, optional Codex provider swap. |
+| 5-6 | not yet started | |
 
 ## Immediate next step
 
-Test run for Part 2 finished cleanly. Two open items before moving to Part 3:
+Test run for Part 3 finished cleanly. Open items:
 
-1. **Commit + tag the parent repo for chapter-2.** My responsibility. Files changed in parent: `city/pack.toml` (backend `[[agent]]` block), `city/agents/backend/` (scaffolded by `gc agent add`), `notes/02-building-bones.md` (filled in), `notes/HANDOVER.md` (this update). Tag `chapter-2`. Confirm with the user before tagging.
-2. **Decide on Part 3 scoping.** The locked design says Part 3 introduces frontend + dba agents and the first feature beyond `/health`. Likely first feature: read RSS feeds from a hardcoded list, store items in sqlite, render the front page (HTMX-backed) listing them. Need to decide which agent does what work order before we start so the chapter has a clean shape.
+1. **Commit + tag the parent repo for chapter-3** (my responsibility). About to do this in the next turn.
+2. **Plan Part 4** ("The review loop"). Locked design: introduce `reviewer` polecat + optional Codex provider swap. Real-world hook: backend's completion mail flagged entity-encoded titles in HN ingest data. Use that defect as the chapter's review-loop demo. Reviewer reviews the just-shipped feature, files the bug bead, mayor routes the fix to backend (or frontend), reviewer re-reviews. Tight, concrete chapter shape.
 
-## What just happened (Part 2 outcome)
+## What just happened (Part 3 outcome)
 
-- User ran `gc reload` then `gc config show | grep -A 4 'name = "backend"'`. Resolved config showed `dir = "rss-reader"` on the backend block. Reload was a no-op because an earlier reload had already picked it up; harmless.
-- User ran `gc mail send mayor ...` + `gc session submit mayor "Check your inbox."`. Mayor woke, processed the mail, called `gc sling rss-reader/backend rr-lhv`.
-- Backend polecat session `rss-reader/backend-1` materialized and ran the scaffold turn: wrote `package.json`, `tsconfig.json`, `src/index.ts` (Hono + bun:sqlite, GET /health). Ran `bun install`, sanity-tested the server, killed it (exit 143 SIGTERM, expected), `bunx tsc --noEmit` clean, staged specific files, committed with bead ID in subject, closed `rr-lhv` with a real reason.
-- On disk in `rss-reader/`: scaffold present (`package.json`, `tsconfig.json`, `src/index.ts`, `.gitignore`, `bun.lock`, empty `rss-reader.db`). Two commits in rig history: `e3c70c6` (initial bd config + gitignore) and `6f9d267` (scaffold).
+- User registered `dba` and `frontend` polecats via `gc agent add` + manual `[[agent]]` block edits in pack.toml. Same two-step pattern as Part 2's backend.
+- I wrote three prompt templates (dba, frontend, mayor update) under one-off authorization. Mayor's prompt now teaches pre-routing entire chains via `gc sling --on mol-do-work` rather than the manual nudge loop.
+- User restarted the mayor with `gc handoff --target mayor "<feature subject>" "<feature body>"` so the new prompt loaded and the feature mail was waiting.
+- Mayor decomposed the feature into three beads (`rr-iv6` schema, `rr-i9v` ingest, `rr-96c` render), wired deps with `bd dep add`, slung the first with `--on mol-do-work`.
+- After user pushback on the manual-nudge framing, two recovery slings (`gc sling rss-reader/backend rr-i9v --on mol-do-work` and the same for frontend) stamped `gc.routed_to` on the remaining beads. The chain then ran hands-off: backend polecat spawned automatically when rr-iv6 closed and rr-i9v became ready; frontend polecat spawned when rr-i9v closed and rr-96c became ready.
+- Final state in `rss-reader/`: four commits (`6f9d267` scaffold, `fd8274f` schema, `0ea0f57` ingest, `3daafff` render). Three feature beads closed. Server boots, `/api/items` returns N HN items, `/` renders the HN-style index.
+- Major mid-chapter learning: GC auto-dispatches on `gc.routed_to` metadata via PR#1126 (merged 2026-04-23). Sling stamps the metadata; reconciler spawns/wakes the right agent when the bead becomes ready. Pre-route the whole chain upfront, then hands-off. Memory saved at `project_routed_to_auto_dispatch.md`.
+- Tutorial helper added at `bin/overview.sh` because the v1.0.0 dashboard is broken (request-flood, GH#1168, fix on main but no release yet).
+- Mid-chapter notes correction: my Part 2 writeup of `gc reload` was wrong about why "no config changes" appears. The fsnotify watcher (GH#926) picks edits up automatically; `gc reload` is a stabilization tool, not a "kick". Notes corrected.
 
 ## Workspace layout
 

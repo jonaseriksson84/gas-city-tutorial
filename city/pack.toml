@@ -11,6 +11,16 @@ name = "backend"
 dir = "rss-reader"
 prompt_template = "agents/backend/prompt.template.md"
 
+[[agent]]
+name = "dba"
+dir = "rss-reader"
+prompt_template = "agents/dba/prompt.template.md"
+
+[[agent]]
+name = "frontend"
+dir = "rss-reader"
+prompt_template = "agents/frontend/prompt.template.md"
+
 [[named_session]]
 template = "mayor"
 mode = "always"

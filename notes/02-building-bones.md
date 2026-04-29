@@ -31,9 +31,26 @@ The two-step flow is consistent with what the help text and GH issue history imp
 
 After registering `backend` in `pack.toml`, `gc status` shows only `dog` (the maintenance pool with declared min/max sizing) and `mayor` (the named session). `backend` is a polecat: configured but not running. It only appears in `gc session list` once work routes to it and a session materializes. Worth a one-line callout so readers do not panic when their newly-added agent does not show up in status.
 
-### `gc reload` may say "controller is busy" and reject the request
+### `gc reload` is usually a no-op (and that is correct behavior)
 
-Observed once during Part 2 setup: a `gc reload` immediately after editing `pack.toml` returned "Reload request could not be accepted because the controller is busy." A retry seconds later succeeded (and reported "No config changes detected" because the first attempt actually picked up the change before reporting busy). Worth telling readers that an occasional retry is fine; if reload is busy, give it a few seconds and try again.
+Both reloads in this run reported "No config changes detected" even though we had just edited `pack.toml`. That message is *not* a failure. It means: the new config is already in memory.
+
+Why: the controller runs a recursive file watcher (fsnotify) over the city directory. Edits to `pack.toml`, `agent.toml`, prompt templates, etc. fire events within milliseconds. The reconciler tick that follows shortly after picks up the change and applies it. By the time the human types `gc reload`, the in-memory config already matches disk, so reload sees nothing to do.
+
+Sources:
+- [GH#926](https://github.com/gastownhall/gascity/issues/926) (closed): the watcher walks subdirs recursively so v2 convention edits trigger hot reload.
+- [GH#1127](https://github.com/gastownhall/gascity/issues/1127) (open): tracks rebasing session config hashes after reload, also notes the "controller is busy" catch-22 fix and confirms `gc reload` is a *stabilization* tool, not a "restart on edit" trigger.
+
+When `gc reload` actually matters:
+- The watcher missed an edit (race conditions during bulk file moves, mostly)
+- The agent is running in a sandboxed environment without fsnotify (CI, etc.)
+- You changed something the watcher does not see: environment variables, remote pack contents, or a config file in a path not covered by the watch list
+
+For the chapter: the reader does not need to run `gc reload` after editing `pack.toml`. They can. It will say "No config changes detected." That is fine. Frame it as "reload is the manual escape hatch; under normal conditions, the watcher has already done the work."
+
+### `gc reload` may say "controller is busy" (intermittent)
+
+Observed in an earlier attempt during Part 2 setup: `gc reload` once returned "Reload request could not be accepted because the controller is busy." A retry seconds later succeeded. This is a known race between reload requests and reconciler ticks, fixed by [GH#1127](https://github.com/gastownhall/gascity/issues/1127) (which buffers the reload channel). On a current build, less common; if it happens, give it a few seconds and try again.
 
 ### Polecat session naming: `<rig>/<agent>-<n>`
 
