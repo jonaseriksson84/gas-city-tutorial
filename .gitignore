@@ -22,6 +22,10 @@ node_modules/
 # These regenerate on a fresh `gc init` and would dangle on any clone, so we untrack them.
 city/.claude/skills/
 
+# The rig is its own git repo (required by bd auto-export and gc doctor).
+# Parent should not try to track its contents; managed independently inside.
+rss-reader/
+
 # SQLite runtime artifacts
 *.db-journal
 *.db-shm

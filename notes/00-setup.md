@@ -52,4 +52,25 @@ Step 8 returns silently (prompt comes back) once the supervisor finishes startin
 
 ## Failure modes encountered
 
-None yet.
+### Rigs must be git repos for bd auto-export to work cleanly
+
+`gc rig add` does not initialize a git repo inside the rig directory. `gc doctor` flags this as a warning (`rig:<name>:git — not a git repository`), and it surfaces later as a `auto-export: git add failed` warning from bd every time an agent runs `bd create` against the rig (bd writes `.beads/issues.jsonl` after each write and tries to `git add` it).
+
+Fix is one line, run inside the rig dir right after `gc rig add`:
+
+```bash
+git init
+```
+
+For the chapter: this belongs in Part 0 setup, between `gc rig add` and the verification `gc status`. Otherwise readers will start tripping on the warning the moment work hits the rig in Part 2.
+
+### Skills symlinks are absolute paths
+
+`gc init` populates `city/.claude/skills/` with seven symlinks (`core.gc-agents`, `core.gc-city`, `core.gc-dashboard`, `core.gc-dispatch`, `core.gc-mail`, `core.gc-rigs`, `core.gc-work`). The auto-generated `city/.gitignore` does not exclude them, so they get tracked when you `git add`. The targets are absolute paths inside `city/.gc/system/packs/core/skills/`, which is gitignored. On any clone:
+
+- The targets never exist (`.gc/` is not committed).
+- If the clone path differs from the original, the absolute paths point nowhere on the new machine either way.
+
+Fix for a tutorial reference repo: add `city/.claude/skills/` to the parent repo's `.gitignore`. A fresh `gc init` regenerates them locally.
+
+Worth flagging upstream eventually: the GC team's auto-generated city `.gitignore` probably should exclude `.claude/skills/` itself, or `gc init` should write relative-target symlinks.
