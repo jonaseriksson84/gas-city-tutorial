@@ -18,47 +18,15 @@ Stack: Bun + Hono + `bun:sqlite` + `hono/html` + HTMX + TypeScript. Five agents 
 | 1 First contact | `chapter-1` | Done. Strict-delegator mayor, first mail+reply round-trip. Mayor created scaffold bead `rr-lhv`. |
 | 2 Building the bones | `chapter-2` | Done. Backend polecat materialized, built scaffold, committed in rig (`6f9d267`), closed `rr-lhv`. |
 | 3 Specialists at work | `chapter-3` | Done. dba and frontend registered, mayor's prompt updated to pre-route chains, feature delivered (HN-style index from hardcoded RSS feed). Three feature beads closed; four chapter commits in rig (scaffold, schema, ingest, render). |
-| 4 The review loop | not yet tagged | **Test run done, awaiting commit + tag.** Reviewer polecat registered (`provider = "codex"`), domain-label feature delivered + reviewed + entity-encoded titles defect filed and fixed end-to-end via the review loop. Reviewer ran on Codex; no auth surprises. |
-| 5-6 | not yet started | |
+| 4 The review loop | `chapter-4` | Done (commit `8bd4e43`). Reviewer polecat registered with `provider = "codex"`. Domain-label feature delivered + reviewed + entity-encoded-titles defect filed and fixed end-to-end via the review loop. Reviewer ran on Codex; no auth surprises. Notification hook for stuck-polecat paging wired in `city/.gc/settings.json`. |
+| 5 Going live | not yet started | Plan: introduce `order` primitive (cooldown + cron) for periodic feed-fetch. Likely first custom formula authoring (deferred from Part 4 per design). |
+| 6 Capstone | not yet started | |
 
 ## Immediate next step
 
-Part 4 test run complete. Awaiting commit + `chapter-4` tag. Then task #6 (Notification hook for stuck-polecat detection) is the next concrete piece of work, as a follow-up off the chapter-4 tag.
+Part 4 done and tagged. Mayor was killed and respawned to load the new Notification hook. Part 5 ("Going live") is next: introduce orders, schedule periodic feed-fetch, likely write the first custom formula. Reader-writes-one-config-from-scratch pedagogy level per the locked design.
 
-## Part 4 plan (sketch agreed with user, open design questions remain)
-
-**Concept payload (per locked design):** inter-agent communication (specialists to/from reviewer, not just via mayor), optional Codex provider swap.
-
-**Hands-on bug:** the entity-encoded-titles defect backend flagged at the end of Part 3. Real bug already in the running app — concrete target for the review loop. Backend's completion mail: "observed entity-encoded titles in ingest data." HN RSS includes `&amp;` etc. and we store it raw, so the rendered titles show literal `&amp;`.
-
-**New agent:** `reviewer` (polecat, rig-scoped). Reviews shipped work, writes findings into bead notes, either closes approving or files a fix bead.
-
-**Reader writes (configs):**
-- `gc agent add --name reviewer --dir rss-reader` + `[[agent]]` block in pack.toml (familiar two-step from Parts 2 and 3)
-- `agents/reviewer/prompt.template.md` ("reader-writes-from-bullets" pedagogy level per design)
-- Update mayor's prompt: after a feature lands, mayor slings a review bead to reviewer instead of declaring victory.
-
-**Chapter flow:**
-1. Reviewer materializes, reads the rendered page + recent commits, notices entity-encoded titles.
-2. Reviewer files a fix bead (e.g. `rr-decode-titles`), mails mayor.
-3. Mayor routes the fix bead.
-4. Backend (or frontend, see open question) fixes, commits, closes.
-5. Reviewer re-reviews and approves. Loop closes.
-
-**Shape check (end-of-chapter):**
-- Browser at `localhost:3000/` shows titles rendered correctly (`Foo & Bar` not `Foo &amp; Bar`)
-- Two new commits in rig (fix + optional test)
-- Two new closed beads (review bead, fix bead)
-- Reviewer notes captured in bead history
-
-**Open design questions to settle before running Part 4:**
-1. **Mayor in the middle vs direct specialist↔reviewer mail.** Design says "inter-agent communication"; question is whether we *use* it as the primary pattern or keep mayor as router. My lean: mayor stays as router for *work routing* but reviewer mails specialists directly with review questions ("did you mean X?") and CCs mayor. That demonstrates the new pattern without removing the mayor's coordination role.
-2. **Fix lane: backend vs frontend.** Decode at ingest (backend, single decode, raw-stays-clean DB) or at render (frontend, DB stays as-fed). My lean: backend. Defensible either way; worth a paragraph in the chapter.
-3. **Custom formula in this chapter, yes or no.** Pedagogy curve says reader writes more configs at this point. A small formula (`mol-review-and-fix`) is realistic but adds chapter weight on top of the new agent + new pattern. My lean: no, defer formula authoring to Part 5 or 6 to keep Part 4 tight.
-
-Confirm these three before running, then proceed.
-
-**Estimated cost:** smaller than Part 3. ~15-25 min elapsed, ~$0.50-1 in API.
+Start by re-reading `project_tutorial_design.md` for the Part 5 concept payload (orders: cooldown + cron), then sketch a chapter plan for the user to confirm before running anything.
 
 ## What just happened (Part 3 outcome)
 
@@ -152,13 +120,26 @@ Do **not** use `gc session submit ... --intent interrupt_now` (interrupts mid-tu
 
 **`watch` + `git log` needs `--no-pager`.** Otherwise git seizes the TTY and `watch` becomes unusable. The `bin/overview.sh` helper uses `git --no-pager log`.
 
-**`gc reload` is mostly a no-op (and that is correct).** The controller's fsnotify watcher (GH#926) picks up edits to `pack.toml`, `agent.toml`, and prompt templates within milliseconds and applies them at the next reconciler tick. By the time you call `gc reload`, the in-memory config matches disk and reload reports "No config changes detected." That is a positive signal, not a failure. Reload matters only when the watcher missed something (CI, sandbox, environment vars). Long-running named sessions (mayor) still need an explicit restart to pick up prompt edits — use `gc handoff --target mayor "<subject>" "<body>"` (kills + reconciler restarts + first task waiting in inbox).
+**`gc reload` is mostly a no-op (and that is correct).** The controller's fsnotify watcher (GH#926) picks up edits to `pack.toml`, `agent.toml`, and prompt templates within milliseconds and applies them at the next reconciler tick. By the time you call `gc reload`, the in-memory config matches disk and reload reports "No config changes detected." That is a positive signal, not a failure. Reload matters only when the watcher missed something (CI, sandbox, environment vars).
+
+**`gc handoff --target mayor` does NOT restart `mode = "always"` named sessions.** Per `gc handoff --help`, always-on named sessions are "on-demand configured" and handoff just sends mail without killing. The new prompt template will not load. For a real restart that picks up prompt or settings.json edits, use `gc session kill mayor` — the reconciler respawns the session with the latest config. `gc handoff` is for "deliver mail and continue conversation," which is different from "load new prompt."
 
 **`gc reload` may say "controller is busy"** during a reconcile tick. Retry in a few seconds. Buffered-channel fix in [GH#1127](https://github.com/gastownhall/gascity/issues/1127), still open as of build cutoff.
 
 **`gc mail reply` requires `-s` subject** (does not auto-Re from parent). The mayor learned this the hard way; the strict-delegator prompt now lists the exact reply syntax.
 
 **`gc mail check` exits 1 when there is no mail** (intentional, useful for shell scripts; not an error).
+
+**Use `gc mail peek <id>` not `gc mail read <id>` when a human inspects an agent's mail.** `read` marks the message as read and removes it from the recipient's `gc mail check` (unread-only) result, which can starve the agent of work it needs to act on. `peek` shows the body without mutating state. If you accidentally use `read`, recover with `gc mail mark-unread <id>`.
+
+**Notification hook for stuck-polecat paging lives in `city/.gc/settings.json`.** Claude Code's `Notification` hook fires when a session is waiting for permission or has been idle 60s+; we wire it to `gc mail send human --notify` so the human gets paged. GC has no upstream equivalent ([GH#534](https://github.com/gastownhall/gascity/issues/534) closed `not_planned`), so this hook is the only path. The settings file applies to all managed Claude Code sessions in the city; new sessions read it on spawn, live sessions need a restart (`gc session kill <name>`) to reload.
+
+**`.gc/settings.json` is gitignored by default in city.** The default `.gitignore` excludes the entire `.gc/` directory. To track config files like `settings.json`, use an allowlist pattern in `city/.gitignore`:
+```
+.gc/*
+!.gc/settings.json
+```
+Same shape as the existing `.beads/*` + `!.beads/config.yaml` allowlist.
 
 **Polecats invisible in `gc session list`** until they run. `gc status` only shows named sessions and scaled pools. A newly-registered polecat agent is still configured correctly even if invisible.
 
