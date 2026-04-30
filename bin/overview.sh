@@ -26,6 +26,10 @@ hr; echo "RIG COMMITS (last 5)"; hr
 git -C "$RIG" --no-pager log --oneline -5 2>&1 || true
 echo
 
+hr; echo "HUMAN INBOX (last 5) — stuck-agent pages land here"; hr
+gc --city "$CITY" mail inbox human 2>&1 | grep -v '^warning:' | head -8 || true
+echo
+
 hr; echo "MAYOR INBOX (last 5)"; hr
 gc --city "$CITY" mail inbox mayor 2>&1 | grep -v '^warning:' | head -8 || true
 echo

@@ -21,6 +21,12 @@ name = "frontend"
 dir = "rss-reader"
 prompt_template = "agents/frontend/prompt.template.md"
 
+[[agent]]
+name = "reviewer"
+dir = "rss-reader"
+prompt_template = "agents/reviewer/prompt.template.md"
+provider = "codex"
+
 [[named_session]]
 template = "mayor"
 mode = "always"

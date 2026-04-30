@@ -17,13 +17,13 @@ Stack: Bun + Hono + `bun:sqlite` + `hono/html` + HTMX + TypeScript. Five agents 
 | 0 Setup | `chapter-0` | Done. City + rig registered. |
 | 1 First contact | `chapter-1` | Done. Strict-delegator mayor, first mail+reply round-trip. Mayor created scaffold bead `rr-lhv`. |
 | 2 Building the bones | `chapter-2` | Done. Backend polecat materialized, built scaffold, committed in rig (`6f9d267`), closed `rr-lhv`. |
-| 3 Specialists at work | not yet tagged | **Test run done, awaiting commit + tag.** dba and frontend registered, mayor's prompt updated to pre-route chains, feature delivered (HN-style index from hardcoded RSS feed). Three feature beads closed; four chapter commits in rig (scaffold, schema, ingest, render). Defect flagged for Part 4: entity-encoded titles in HN ingest. |
-| 4 The review loop | not yet started | Plan: introduce `reviewer` polecat, fix the entity-encoded-titles defect via the review loop, optional Codex provider swap. |
+| 3 Specialists at work | `chapter-3` | Done. dba and frontend registered, mayor's prompt updated to pre-route chains, feature delivered (HN-style index from hardcoded RSS feed). Three feature beads closed; four chapter commits in rig (scaffold, schema, ingest, render). |
+| 4 The review loop | not yet tagged | **Test run done, awaiting commit + tag.** Reviewer polecat registered (`provider = "codex"`), domain-label feature delivered + reviewed + entity-encoded titles defect filed and fixed end-to-end via the review loop. Reviewer ran on Codex; no auth surprises. |
 | 5-6 | not yet started | |
 
 ## Immediate next step
 
-Part 3 finished and committed (`4adf6f9`, tagged `chapter-3`). User paused before Part 4. When picking up, the user is choosing whether to start Part 4 (no commands run yet for it).
+Part 4 test run complete. Awaiting commit + `chapter-4` tag. Then task #6 (Notification hook for stuck-polecat detection) is the next concrete piece of work, as a follow-up off the chapter-4 tag.
 
 ## Part 4 plan (sketch agreed with user, open design questions remain)
 
@@ -118,14 +118,25 @@ dolt --use-db <db-name> sql -q "
 "
 ```
 
-**Bug GH#1139: idle Claude Code sessions do not auto-poll** for new mail or routed work. Hooks fire on `SessionStart`, `UserPromptSubmit`, `Stop`, `PreCompact`, none of which trigger on a fully-idle session. The canonical pattern for "send mail, have it picked up at earliest convenience" is:
+**Bug GH#1139: idle Claude Code sessions do not auto-poll** for new mail or routed work. Hooks fire on `SessionStart`, `UserPromptSubmit`, `Stop`, `PreCompact`, none of which trigger on a fully-idle session. The canonical pattern for "send mail and wake the recipient" is **`--notify`** on the send:
 
 ```bash
-gc mail send <agent> -s "<subject>" -m "<body>"
-gc session submit <agent> "Check your inbox."
+gc mail send <agent> -s "<subject>" -m "<body>" --notify
+gc mail reply <id> -s "<subject>" -m "<body>" --notify
 ```
 
-Do **not** use `gc mail send --notify` (writes to stdin, sits in buffer when idle, never processed). Do **not** use `gc session submit ... --intent interrupt_now` (interrupts mid-turn work; bad pattern for everyday flow). Default intent on submit is correct: it wakes idle sessions and queues for in-turn sessions.
+`--notify` queues a recipient nudge after the mail bead is written ([GH#1370](https://github.com/gastownhall/gascity/issues/1370), [GH#1404](https://github.com/gastownhall/gascity/pull/1404), both closed). The recipient wakes automatically.
+
+If you forgot `--notify` on an already-sent mail and the recipient is idle, the manual two-step still works as a recovery:
+
+```bash
+gc mail send <agent> -s "..." -m "..."             # without --notify
+gc session submit <agent> "Check your inbox."      # manual nudge afterward
+```
+
+Do **not** use `gc session submit ... --intent interrupt_now` (interrupts mid-turn work; bad pattern for everyday flow). Default intent on submit is correct: it wakes idle sessions and queues for in-turn sessions.
+
+**Earlier note that `--notify` "writes to stdin and sits in buffer" was stale** — it was true at one point ([GH#619](https://github.com/gastownhall/gascity/issues/619), closed) and the chain of fixes through GH#1404 made it work properly. Treat `--notify` as the canonical send-and-wake primitive.
 
 **Doctor's `v2-agent-format` warning is a known false positive** ([GH#1175](https://github.com/gastownhall/gascity/issues/1175), [GH#1244](https://github.com/gastownhall/gascity/issues/1244)). Schema=2 pack.toml `[[agent]]` blocks ARE the intended layout. Ignore the warning, do not try to "fix" it.
 
