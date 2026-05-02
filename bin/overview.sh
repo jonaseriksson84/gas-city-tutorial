@@ -5,8 +5,8 @@
 
 set -u
 
-CITY=/Users/jonaseriksson/code/gas-city-tutorial/city
-RIG=/Users/jonaseriksson/code/gas-city-tutorial/rss-reader
+CITY=/Users/jonaseriksson/Code/gas-city-tutorial/city
+RIG=/Users/jonaseriksson/Code/gas-city-tutorial/rss-reader
 
 hr() { printf '%s\n' "------------------------------------------------------------"; }
 

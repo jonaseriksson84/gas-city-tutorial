@@ -3,3 +3,4 @@ provider = "claude"
 
 [[rigs]]
 name = "rss-reader"
+formulas_dir = "../rss-reader/formulas"

@@ -1,0 +1,6 @@
+[order]
+description = "Fetch HN RSS feed every two minutes and ingest new items"
+trigger = "cooldown"
+interval = "2m"
+exec = "cd /Users/jonaseriksson/Code/gas-city-tutorial/rss-reader && bun run src/cli/ingest.ts"
+timeout = "30s"

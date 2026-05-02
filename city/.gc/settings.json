@@ -1,17 +1,6 @@
 {
   "editorMode": "normal",
   "hooks": {
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "command": "export PATH=\"$HOME/go/bin:$HOME/.local/bin:$PATH\" \u0026\u0026 gc mail send human --notify -s \"$GC_AGENT needs attention\" -m \"Permission prompt or idle on session $GC_SESSION_NAME. Run: gc session attach $GC_SESSION_NAME\"",
-            "type": "command"
-          }
-        ],
-        "matcher": ""
-      }
-    ],
     "PreCompact": [
       {
         "hooks": [

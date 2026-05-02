@@ -1,0 +1,6 @@
+[order]
+description = "Prune items older than 30 days and compact the rss-reader sqlite database nightly"
+trigger = "cron"
+schedule = "0 4 * * *"
+exec = "sqlite3 /Users/jonaseriksson/Code/gas-city-tutorial/rss-reader/rss-reader.db \"DELETE FROM items WHERE published_at < datetime('now', '-30 days'); VACUUM;\""
+timeout = "5m"
