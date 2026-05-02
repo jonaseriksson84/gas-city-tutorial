@@ -1,24 +1,20 @@
 # Part 4: The review loop
 
-You have shipped a feature through three specialists. They worked, the page renders, the database has rows. What you do not yet have is a second pair of eyes on any of it. That is the gap this chapter fills.
+You have shipped a feature through three specialists. What you do not yet have is a second pair of eyes on any of it. That is the gap this chapter fills.
 
 By the end:
 
 - A `reviewer` agent registered, optionally running on Codex instead of Claude.
 - The mayor's prompt has grown to add a mandatory review bead at the end of every feature chain.
 - A small feature shipped (source domain label next to each title) and reviewed.
-- The reviewer found a real defect, filed a fix bead, the loop closed, and the fix landed.
 
-Two concepts are new here: **inter-agent communication beyond the mayor** (reviewers can mail specialists directly) and **provider pluggability** (one line in `pack.toml` swaps an agent over to Codex; the rest of the city stays on Claude).
+Two concepts are new: **inter-agent communication beyond the mayor** (reviewers can mail specialists directly) and **provider pluggability** (one line in `pack.toml` swaps an agent over to Codex; the rest of the city stays on Claude).
 
 ## Why a separate reviewer
 
-Two reasons to give review its own agent rather than asking specialists to review each other's work:
+A specialist's prompt tells it to ship the feature. A reviewer's prompt tells it to read everything before writing a finding. The two postures pull in different directions; mixing them in one prompt produces an agent that is mediocre at both. A separate reviewer also gives every approval its own bead with its own summary, so the rig's history shows what was reviewed and what passed.
 
-- **Cleaner trace.** When the reviewer is its own role, every commit's "approval" event is a real bead with a real summary, separate from the work itself. You can read the rig's history later and see what was reviewed and what passed. With self-review, that signal blurs.
-- **Different default posture.** A specialist's prompt tells it to ship the feature. A reviewer's prompt tells it to read everything before writing a finding. The two postures pull in different directions; mixing them in one prompt produces an agent that is mediocre at both.
-
-The provider swap (Codex on the reviewer) is incidental but instructive: it is the simplest way to demonstrate that providers are interchangeable per agent. If you do not have Codex installed, leave the override off and keep the reviewer on Claude. The review loop works either way.
+The provider swap (Codex on the reviewer) is incidental but instructive: the simplest demonstration that providers are interchangeable per agent. If you do not have Codex installed, leave the override off and the reviewer runs on Claude. The review loop works either way.
 
 ## Step 1: Add the reviewer agent
 
@@ -26,7 +22,7 @@ The provider swap (Codex on the reviewer) is incidental but instructive: it is t
 gc agent add --name reviewer --dir rss-reader
 ```
 
-Then in `city/pack.toml`, add a fifth `[[agent]]` block. If you want to try the Codex swap, include the `provider = "codex"` line:
+In `city/pack.toml`, add a fifth `[[agent]]` block. Include the `provider = "codex"` line if you want the swap:
 
 ```toml
 [[agent]]
@@ -36,9 +32,7 @@ prompt_template = "agents/reviewer/prompt.template.md"
 provider = "codex"
 ```
 
-If you skip the swap, drop that last line. The agent will inherit `workspace.provider = "claude"` from `city.toml`, which is what every other agent uses.
-
-For the swap to actually work, you need Codex CLI installed and signed in (it uses your existing ChatGPT login). No new auth dance, no API key juggling. The provider field on a single `[[agent]]` block is the entire mechanism. That mechanism is documented in [GH#821](https://github.com/gastownhall/gascity/issues/821) (closed).
+If you skip the swap, drop that last line; the agent inherits `workspace.provider = "claude"` from `city.toml`. For the swap to work, you need Codex CLI installed and signed in (it uses your existing ChatGPT login). No new auth dance, no API key juggling. Mechanism documented in [GH#821](https://github.com/gastownhall/gascity/issues/821) (closed).
 
 ## Step 2: Write the reviewer prompt
 
@@ -63,7 +57,7 @@ You are the reviewer agent for the `rss-reader` rig. You inspect work that the o
 3. Inspect the work:
    - `cd rss-reader && git --no-pager log --oneline -10` to see what just landed.
    - `git --no-pager show <commit>` for any commit that looks relevant.
-   - Run the app if behavior matters. `curl localhost:3000/<route>` first; if nothing responds, `bun run dev &` to bring it up, then curl, then kill the dev server you started. Do not start a second dev server if one is already on port 3000.
+   - Run the app if behavior matters. `curl localhost:3000/<route>` first; if nothing responds, `bun run dev &` to bring it up, then curl, then kill the dev server you started.
    - Check the data the feature ingested or rendered. Look at actual values, not just shape.
 4. Decide: approve, or file findings.
 5. **Approve path:** close the review bead with a short summary of what you checked and what passed.
@@ -75,16 +69,9 @@ You are the reviewer agent for the `rss-reader` rig. You inspect work that the o
 
 ## Direct mail to specialists
 
-Up to now everything has flowed through the mayor. You can and should mail specialists directly with observations and questions:
+Up to now everything has flowed through the mayor. You can and should mail specialists directly with observations and questions. This does not route work; it is a question or a note. Routing of the actual fix bead still goes through the mayor via sling.
 
-    gc mail send rss-reader/backend -s "Re: rr-unj" \
-      -m "Titles in the items table contain entity-encoded characters \
-      ('&amp;' instead of '&'). Was this intentional or a parsing oversight?" \
-      --notify
-
-This does not route work. It is a question or a note. Routing of the actual fix bead still goes through the mayor via sling.
-
-When the question is durable or you want a written record on the bead itself, attach the observation as a bead note instead: `bd note add <bead-id> "<observation>"`. Notes outlast mail and become part of the bead's history.
+When the question is durable or you want a written record on the bead itself, attach the observation as a bead note: `bd note add <bead-id> "<observation>"`. Notes outlast mail and become part of the bead's history.
 
 ## What "good review" looks like
 
@@ -93,10 +80,10 @@ When the question is durable or you want a written record on the bead itself, at
 - Check the rendered surface in the browser when frontend work is in scope. A page that renders without errors but shows literal `&amp;` is shipping a bug.
 - Cross-check the lanes: did the specialist stay in their lane?
 
-## What is out of scope for review
+## What is out of scope
 
 - Style preferences: variable names, file layout choices.
-- Hypothetical future problems: "what if we had 10M items." Flag concrete observed defects, not speculative ones.
+- Hypothetical future problems. Flag concrete observed defects only.
 - Schema changes that "could be done differently" but match the bead.
 
 ## Commands you actually use
@@ -112,13 +99,9 @@ Your agent name is `$GC_AGENT`. Your assigned bead id appears in the work query 
 
 ## Step 3: Update the mayor's prompt for the review pattern
 
-The mayor needs three changes from the Part 3 version:
+The mayor needs three changes from Part 3: mention the reviewer, always end multi-specialist chains with a review bead, know how to handle the reviewer's outcome.
 
-- Mention the reviewer in the specialists list.
-- Always end multi-specialist chains with a review bead that depends on the last work bead.
-- Know how to handle the reviewer's outcome (approve cleanly, or sling fix beads and create a fresh review bead).
-
-Replace `agents/mayor/prompt.template.md` with this:
+Replace `agents/mayor/prompt.template.md`:
 
 ```markdown
 # Mayor (strict delegator)
@@ -129,7 +112,7 @@ You are the mayor of this Gas City workspace. You receive work requests, decide 
 
 - **You do not write or edit code.** Not even small fixes. If a task needs code, you delegate.
 - **You do not run shell commands that change project state.** No `git`, no `bun`, no editing files. The only commands you run are GC commands for routing, status, and mail.
-- **If no specialist exists for a task,** say so plainly. Tell the human what kind of specialist would be needed and what its responsibilities should be. Do not improvise by doing the work yourself.
+- **If no specialist exists for a task,** say so plainly. Tell the human what kind of specialist would be needed. Do not improvise by doing the work yourself.
 
 ## Your loop
 
@@ -182,10 +165,8 @@ After slinging all of them, your work is **done** for this pass. The reconciler 
 
 When the reviewer is done, expect one of two mails in your inbox:
 
-- **Clean approval.** The review bead is closed with a passing summary. Mail the human: "Feature shipped, reviewer approved. <one-line summary>."
-- **Findings.** The reviewer mails you with a list of fix bead ids and a suggested lane for each. For each fix bead:
-  - Sling it to the suggested lane (use your judgment if the suggestion looks wrong).
-  - Create a new review bead that depends on all the fix beads, then sling it to `rss-reader/reviewer`. The loop continues until the reviewer approves.
+- **Clean approval.** Close the loop: mail the human "Feature shipped, reviewer approved. <one-line summary>."
+- **Findings.** The reviewer mails you with a list of fix bead ids and a suggested lane for each. For each fix bead, sling it to the suggested lane. Then create a new review bead that depends on all the fix beads, and sling it to `rss-reader/reviewer`. The loop continues until the reviewer approves.
 
 Reviewers may also mail specialists directly with observations and questions. That traffic is between them; you do not need to mediate. Routing of the actual fix beads still goes through you.
 
@@ -206,13 +187,9 @@ Your agent name is `$GC_AGENT`.
 
 ## Step 4: Restart the mayor
 
-Same move as Part 3:
-
 ```bash
 gc session kill mayor
 ```
-
-The reconciler respawns the named session within seconds with the new prompt loaded.
 
 ## Step 5: Hand the mayor a feature with built-in bug-bait
 
@@ -232,41 +209,37 @@ Decompose, pre-route the chain (backend, then frontend, then a review bead). Run
 
 ## Step 6: Watch the chain run
 
-Use whichever you prefer: `gc dashboard serve` if it works on your build, or the overview script:
-
 ```bash
 watch -n 3 bash bin/overview.sh
 ```
 
-Mayor decomposes into three beads: backend (derive domain), frontend (render), review (verify). Pre-routes all three. Backend polecat spawns first, ships the API change, commits, closes. Frontend polecat spawns next, ships the template change, commits, closes. Reviewer polecat spawns last, runs through its review loop.
+Mayor decomposes into three beads: backend (derive domain), frontend (render), review (verify). Pre-routes all three. Backend polecat spawns first, ships the API change, commits, closes. Frontend spawns next, ships the template, commits, closes. Reviewer spawns last, runs through its review loop.
 
 A few minutes in, the rig has two new commits, the page shows domain in parens after every title, and the reviewer is reading the diff.
 
 ## Step 7: The reviewer either approves, or finds something
 
-This is the moment the chapter is teaching, and it can go two ways. Both are valid outcomes.
+The chapter is teaching this moment, and it can go two ways. Both are valid.
 
-**Path A: clean approval.** The reviewer runs through the bead's acceptance criteria, finds everything in order, closes the review bead with a passing summary, and mails the mayor: "Feature shipped, reviewer approved." The mayor then mails you. You see two new commits in the rig, the page shows domains in parens after every title, and the chain ends. If your run lands here, that is good news; the review pass is what matters, not whether it found a defect this time.
+**Path A: clean approval.** The reviewer runs through the bead's acceptance criteria, finds everything in order, closes the review bead with a passing summary, mails the mayor: "Feature shipped, reviewer approved." The mayor then mails you. If your run lands here, the review pass is what matters, not whether it found a defect this time.
 
-**Path B: the reviewer finds something real.** This is what happened on my run, and it is worth describing because it shows the loop closing.
+**Path B: the reviewer finds something real.** This is what happened on my run.
 
 On my test run, the reviewer noticed something the test acceptance had not asked about: titles in the items table contained HTML entity sequences. `Honey&#x27;s` instead of `Honey's`, `Bell &amp; Howell` instead of `Bell & Howell`. The HN RSS feed returns titles with HTML-entity-encoded characters; the ingest stored them verbatim; the frontend rendered them as-is, so the user saw literal `&amp;`.
 
-The reviewer filed a fix bead with a concrete title (`Backend: decode HTML entities in ingested titles`), wrote a clean repro (three sample item ids, expected vs actual values), and mailed the mayor with the bead id and a suggested lane (`backend`).
+The reviewer filed a fix bead with a concrete title and a clean repro (three sample item ids, expected vs actual values), mailed the mayor with the bead id and a suggested lane (`backend`). It also tried to mail the backend specialist directly, found no live backend session (the previous polecat had drained), and fell back to `bd note add` so the observation rides with the bead permanently.
 
-The reviewer also tried to mail the backend specialist directly. There was no live backend session at that point because the previous polecat had drained, so the mail send returned an error. The reviewer's prompt has a fallback for this: when no live session exists, attach the observation as a bead note (`bd note add`) so it rides with the bead permanently. The reviewer did exactly that.
-
-Your run may surface a different defect, the same one, or none at all (a non-determinism property of the agents and of the feed itself; the entity-encoding issue depends on whether HN's RSS includes entity-encoded items at the time you run the chain). The important thing is that **a review actually happened**: the reviewer read the diff, ran the app, looked at the data, and either passed or filed something concrete. If the reviewer's pass is one line and shows no evidence of inspection, the prompt's "read everything in scope before writing a review" rule did not stick; reply asking for a real review.
+Your run may surface a different defect, the same one, or none at all (whether HN's RSS includes entity-encoded items at the time you run depends on what is on the front page). The important thing is that **a review actually happened**: the reviewer read the diff, ran the app, looked at the data, and either passed or filed something concrete. If the reviewer's pass is one line and shows no evidence of inspection, the prompt's "read everything in scope" rule did not stick; reply asking for a real review.
 
 ## Step 8: The mayor closes the loop (Path B)
 
-If your reviewer found nothing, skip ahead to Step 9. If it filed a finding:
+If your reviewer found nothing, skip to Step 9.
 
-The mayor reads the reviewer's mail, slings the fix bead to backend, creates a fresh review bead that depends on the fix, and slings that to the reviewer. Backend respawns, ships the fix, commits, closes. Reviewer respawns, verifies, approves the re-review bead, mails the mayor.
+If it filed a finding: the mayor reads the reviewer's mail, slings the fix bead to the suggested lane, creates a fresh review bead that depends on the fix, slings that to the reviewer. Backend respawns, ships the fix, commits, closes. Reviewer respawns, verifies, approves the re-review bead, mails the mayor.
 
 Mayor mails you: "Feature shipped, reviewer approved." Done.
 
-In my run this added three more beads (one fix, one re-review, plus a small backfill commit) and one more turn through the chain. Five commits in the rig instead of two. Yours may differ.
+In my run this added three more beads (one fix, one re-review, plus a small backfill commit). Five rig commits instead of two. Yours may differ.
 
 ## Step 9: Verify
 
@@ -275,30 +248,30 @@ cd ../rss-reader
 curl -s http://localhost:3000/ | head -30
 ```
 
-Browser eyeball: titles render, domains show in light parens after each title. If your reviewer found and fixed the entity-encoding issue from my run, you should also see real apostrophes and ampersands in titles instead of `&#x27;` or `&amp;`.
+Browser eyeball: titles render, domains show in light parens after each title.
 
 ## Shape check
 
 - Five `[[agent]]` blocks in `pack.toml`: mayor, backend, dba, frontend, reviewer. Reviewer optionally has `provider = "codex"`.
-- The rig has at least two new commits from this chapter (backend domain, frontend render). If your reviewer filed fix beads, you have one or two more commits on top of those.
+- The rig has at least two new commits from this chapter. If your reviewer filed fix beads, you have one or two more on top.
 - One closed review bead (clean approval), or a closed review bead + fix beads + re-review bead (findings path).
 - The page renders titles cleanly with domains in parens.
-- The mayor mailed you a "feature shipped" summary at the end.
 
 ## When your agent goes off-script
 
-- **Reviewer approves with no real review.** The reviewer prompt's "read everything in scope before writing a review" rule is the guardrail. If you see a one-line approval without evidence (no `git show`, no curl, no value inspection), reply to the reviewer's mail and ask for a real pass. The reviewer's posture sticks better with one nudge.
-- **Reviewer files speculative findings ("what if..."). ** Reply pointing at the prompt's "what is out of scope" section. Concrete observed defects only.
+- **Reviewer approves with no real review.** If the approval is one-line with no evidence (no `git show`, no curl, no value inspection), reply asking for a real pass.
 - **Mayor forgets the review bead.** The Part 4 prompt makes it mandatory; if it slips, send a reminder and let the mayor re-dispatch.
-- **Codex reviewer asks for re-auth or fails to start.** Codex CLI carries its login from your ChatGPT session. If it refuses to start, run `codex` directly in your shell to confirm it works, then retry. If it still fails, drop `provider = "codex"` from the reviewer block and let it run on Claude. The chapter works the same on either provider.
-- **Reviewer's mail to the mayor was sent without `--notify`.** The mayor sits idle and never reads it. Manual recovery: `gc session submit mayor "Check your inbox."`. Then update the reviewer's prompt to use `--notify` on every send (the version above already does).
+- **Reviewer's mail to the mayor was sent without `--notify`.** The mayor sits idle and never reads it. Recover with `gc session submit mayor "Check your inbox"`.
 
-## Sidebar: the permission-prompt-stuck gap
+<details>
+<summary><strong>Sidebar:</strong> the permission-prompt-stuck gap (open)</summary>
 
-There is a real ergonomic problem in the current setup that this chapter does not solve: when a polecat hits a Claude Code permission prompt (e.g. "Allow Bash command: `rm .git/index.lock`?"), the session pauses waiting for human input. From Gas City's point of view the session is healthy; tmux pane alive, last activity recent. No event surfaces the stuck state. So if you are not actively watching the overview tile, the polecat can sit indefinitely.
+There is a real ergonomic problem this chapter does not solve: when a polecat hits a Claude Code permission prompt (e.g. "Allow Bash command: `rm .git/index.lock`?"), the session pauses waiting for human input. From Gas City's point of view the session is healthy: tmux pane alive, last activity recent. No event surfaces the stuck state. If you are not actively watching the overview, the polecat can sit indefinitely.
 
-The instinct is to wire a Claude Code `Notification` hook (Claude Code does fire one when waiting for input) that mails the human. We tried this during the test run and pulled it back: the same hook also fires on plain idle (60+ seconds with no activity), which floods the inbox. A `matcher: "permission_prompt"` filter could narrow it, but we ended up deciding the entire mail-as-paging channel was wrong for this signal.
+The instinct is to wire a Claude Code `Notification` hook to mail the human. We tried this during the test run and pulled it back: the same hook also fires on plain idle (60+ seconds), which floods the inbox. A `matcher: "permission_prompt"` filter could narrow it, but mail-as-paging was the wrong channel.
 
-The honest framing for now: Gas City does not yet have a clean primitive for "agent stuck on permission prompt" alerts. Manual recovery is `gc session attach <name>`, approve the prompt, detach (`Ctrl-b` `d`). [GH#534](https://github.com/gastownhall/gascity/issues/534) closed as `not_planned`, so this gap is not on a roadmap. If you find yourself running this setup for real, the right fix is probably a small osascript wrapper or terminal bell tied to the same `Notification` hook, not a mail-based pager. Out of scope for this tutorial; flagged as future work.
+Honest framing: Gas City does not yet have a clean primitive for "agent stuck on permission prompt" alerts. Manual recovery is `gc session attach <name>`, approve the prompt, detach. [GH#534](https://github.com/gastownhall/gascity/issues/534) closed as `not_planned`. If you run this for real, a small osascript wrapper or terminal bell tied to the same `Notification` hook is probably the right shape.
+
+</details>
 
 In Part 5 we move from "I tell the system what feature to build" to "the system runs on its own schedule": cooldown ingest, nightly database prune, and a daily AI-written digest.

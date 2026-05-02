@@ -1,22 +1,22 @@
 # Part 2: Building the bones
 
-In Part 1 you woke a mayor with no specialists. It read your project intent, replied, and waited. In this chapter we register a **backend** specialist, hand the mayor a feature, watch it route the work, and end up with a working app skeleton committed to the rig.
+In Part 1 you woke a mayor with no specialists. In this chapter we register a **backend** specialist, hand the mayor a feature, watch it route the work, and end up with a working app skeleton committed to the rig.
 
 By the end:
 
 - `pack.toml` has a backend agent registered, bound to the `rss-reader` rig.
-- The mayor's prompt has grown to cover single-specialist routing via `gc sling`.
-- The backend polecat has materialized, scaffolded the rig (Bun + Hono + `bun:sqlite`), committed it, and closed its assigned bead.
+- The mayor's prompt covers single-specialist routing via `gc sling`.
+- The backend polecat has materialized, scaffolded the rig, committed, and closed its bead.
 
-Three Gas City concepts surface here: **sling** (the routing primitive), **beads** (the unit of work), and **hooks** (how Claude Code sessions get nudged automatically).
+Three concepts surface here: **sling** (the routing primitive), **beads** (the unit of work), and **hooks** (how Claude Code sessions get nudged automatically).
 
-## The two kinds of agent: crew and polecat
+## Crew vs polecat
 
-Crew agents run continuously. The mayor is crew because `pack.toml` declares it as a `[[named_session]]` with `mode = "always"`. The session is up around the clock, ready to read mail.
+Crew agents run continuously. The mayor is crew because `pack.toml` declares it as a `[[named_session]]` with `mode = "always"`.
 
-Polecats run on demand. They have no `[[named_session]]` block. They spawn when work is routed to them, do that work, commit, close the bead, and exit. The next time work shows up they spawn fresh. This means polecats stay invisible in `gc status` until they are actively running, which is normal and a small thing to watch for.
+Polecats run on demand. They have no `[[named_session]]` block. They spawn when work is routed to them, do that work, commit, close the bead, and exit. Polecats stay invisible in `gc status` until they are actively running.
 
-For this tutorial, the mayor is the only crew agent. Backend, DBA, frontend, and reviewer (the four specialists you will register over the next chapters) are all polecats.
+For this tutorial, the mayor is the only crew agent. Backend, DBA, frontend, and reviewer (the four specialists you register over the next chapters) are all polecats.
 
 ## Step 1: Scaffold the backend agent
 
@@ -24,14 +24,14 @@ For this tutorial, the mayor is the only crew agent. Backend, DBA, frontend, and
 gc agent add --name backend --dir rss-reader
 ```
 
-This creates `agents/backend/` with two files:
+This creates `agents/backend/` with:
 
-- `agent.toml`, a small configuration stub (containing `dir = "rss-reader"` because of the flag)
+- `agent.toml`, a small stub (containing `dir = "rss-reader"` because of the flag)
 - `prompt.template.md`, a placeholder you will replace
 
-The `--dir` flag tells the scaffolder where the agent's working directory should be when it runs, and writes that into `agent.toml`. **It does not register the agent.** Per `gc agent add --help`: "These files live in the city directory and do not append `[[agent]]` blocks to `city.toml`." Registration is a separate step you do by hand. The tool stays out of `pack.toml` on purpose so that you can review the registration block before it goes live.
+The `--dir` flag writes the dir into `agent.toml`. **It does not register the agent.** Per `gc agent add --help`: "These files live in the city directory and do not append `[[agent]]` blocks to `city.toml`." Registration is a separate manual step. The tool stays out of `pack.toml` on purpose so you can review the registration block before it goes live.
 
-You will see this two-step shape every time you add an agent in this tutorial. `gc agent add` for the scaffolding (with `--dir <rig>` for rig-scoped agents), then a manual `[[agent]]` block in `pack.toml` for the registration.
+You will see this two-step shape every time you add an agent: `gc agent add` for the scaffolding, then a manual `[[agent]]` block in `pack.toml` for the registration.
 
 ## Step 2: Register the agent in `pack.toml`
 
@@ -44,15 +44,15 @@ dir = "rss-reader"
 prompt_template = "agents/backend/prompt.template.md"
 ```
 
-The `dir = "rss-reader"` is the binding that makes this a rig-scoped specialist. When you sling work to `rss-reader/backend`, the spawned session's working directory will be `rss-reader/`, and `bd` calls will operate on the rig's bead store.
+The `dir = "rss-reader"` makes this a rig-scoped specialist. When you sling work to `rss-reader/backend`, the spawned session's working directory will be `rss-reader/`, and `bd` calls will operate on the rig's bead store.
 
-You may notice the `dir = "rss-reader"` field is now in **both** `agent.toml` (written by `gc agent add --dir`) and `pack.toml` (added by you here). Yes, that is duplication, and yes, the `pack.toml` one is the source of truth. The `agent.toml` field does not propagate into the resolved config in this build; without the `dir` line in `pack.toml`, `gc sling rss-reader/backend <bead>` errors with `agent 'rss-reader/backend' not found in city.toml; did you mean 'rss-reader/claude'?`. The `claude` suggestion is a fallback generic worker that the core system pack provides; it will not have your prompt or behavior, so the hint is misleading. Adding the `dir` field on the correct `[[agent]]` block in `pack.toml` is what fixes it.
+Yes, `dir` is now in both `agent.toml` (written by `--dir`) and `pack.toml` (added here). The `pack.toml` one is the source of truth; `agent.toml`'s `dir` does not propagate into the resolved config in this build. Without the `dir` line in `pack.toml`, `gc sling rss-reader/backend <bead>` errors with `agent 'rss-reader/backend' not found in city.toml`.
 
-A note on a v1.0.0 false positive: `gc doctor` may warn about `v2-agent-format`. This is [GH#1175](https://github.com/gastownhall/gascity/issues/1175) and [GH#1244](https://github.com/gastownhall/gascity/issues/1244). Schema=2 `pack.toml` with `[[agent]]` blocks is the intended layout. The warning is a known false positive; ignore it.
+`gc doctor` may also warn about `v2-agent-format`. That is [GH#1175](https://github.com/gastownhall/gascity/issues/1175), a known false positive. Schema=2 `pack.toml` with `[[agent]]` blocks is the intended layout. Ignore it.
 
 ## Step 3: Write the backend prompt
 
-Open `agents/backend/prompt.template.md` and replace it with this:
+Open `agents/backend/prompt.template.md` and replace it with:
 
 ```markdown
 # Backend (rss-reader specialist)
@@ -81,7 +81,7 @@ You are the backend agent for the `rss-reader` rig. You work on server-side code
 - Runtime: Bun. Use `bun install`, `bun run`, `bun test`. No npm.
 - Framework: Hono. Routes live in `rss-reader/src/`.
 - Database: `bun:sqlite` (Bun built-in). Schema is owned by the `dba` agent (added later); for now just create the file.
-- Language: TypeScript with strict settings. `tsconfig.json` should set `"strict": true`.
+- Language: TypeScript with strict settings.
 - No build step. Bun runs `.ts` files directly.
 
 ## Commands you actually use
@@ -89,11 +89,10 @@ You are the backend agent for the `rss-reader` rig. You work on server-side code
 - bd: `bd ready`, `bd show <id>`, `bd close <id>`, `bd label add <id> <label>`
 - Mail: `gc mail send mayor -s "<subject>" -m "<body>"` for status updates
 - Shell: `bun install`, `bun run dev`, `bun test`, `git`
-- Status: `gc status`
 
 ## When in doubt
 
-Run `gc <cmd> --help` rather than guessing flags. If a task is genuinely ambiguous, mail the mayor, label the bead `blocked:awaiting-clarification`, and pause rather than guess.
+Run `gc <cmd> --help` rather than guessing flags. If a task is genuinely ambiguous, mail the mayor, label the bead `blocked:awaiting-clarification`, and pause.
 
 ## Environment
 
@@ -102,7 +101,7 @@ Your agent name is `$GC_AGENT`. Your assigned bead id appears in the work query 
 
 ## Step 4: Update the mayor's prompt for single-specialist routing
 
-The mayor needs to know how to sling work. Open `agents/mayor/prompt.template.md` and add a new "Dispatch" section, plus a brief mention of backend in "Your loop":
+The mayor needs to know how to sling work. Open `agents/mayor/prompt.template.md` and replace it with:
 
 ```markdown
 # Mayor (strict delegator)
@@ -121,7 +120,7 @@ You are the mayor of this Gas City workspace. You receive work requests, decide 
 2. For each request, decide which specialist should handle it.
 3. Dispatch (see below).
 4. Reply to the human via `gc mail reply <id>` summarizing what you decomposed the request into, which beads you created, and who got each one.
-5. Monitor with `bd list` and `gc session peek <name>`. Reply to the human when work lands.
+5. Monitor with `bd list` and `gc session peek <name>`.
 
 ## Available specialists
 
@@ -135,7 +134,7 @@ If a request maps cleanly to one lane, sling with inline text and the built-in `
 
 `--on mol-do-work` attaches the built-in `mol-do-work` formula as a wisp on the bead. The polecat will follow that lifecycle (read assignment, do work, commit, close, drain) instead of behaving ad-hoc. Use this for every polecat sling unless you have a specific reason not to.
 
-When you create a bead, make the description concrete enough that the specialist can act without asking you a clarifying question. Include: what the bead must produce, where files should live (relative to the rig), and what acceptance looks like (a curl, a sql query, etc.).
+When you create a bead, make the description concrete enough that the specialist can act without asking for clarification. Include: what the bead must produce, where files should live (relative to the rig), and what acceptance looks like.
 
 ## Commands you actually use
 
@@ -160,9 +159,9 @@ The mayor's session is still running from Part 1, with the Part 1 prompt loaded.
 gc session kill mayor
 ```
 
-The reconciler respawns the named session within seconds, this time loading the new prompt template at session start. This is the standard tool for prompt-template changes on always-on named sessions (the mayor's `mode = "always"`). We will do this every time we change the mayor's prompt, in this and later chapters.
+The reconciler respawns the named session within seconds with the new prompt loaded. This is the standard tool for prompt-template changes on always-on named sessions. We will do this every time we change the mayor's prompt in later chapters.
 
-`gc handoff --target mayor` is similar but not the same: for `mode = "always"` named sessions it sends mail without killing, so the new prompt does not load. Use handoff when the prompt is unchanged and you just want to deliver a new assignment. Use `gc session kill` when the prompt has changed and you want it loaded.
+A note on `gc handoff --target mayor`: it is the right tool for delivering a new feature request to the mayor when the prompt is unchanged. For prompt changes on `mode = "always"` sessions, handoff sends mail without killing, so the new prompt does not load. Use `gc session kill` for prompt changes; `gc handoff --target` for feature delivery.
 
 ## Step 6: Verify the registration
 
@@ -170,37 +169,32 @@ The reconciler respawns the named session within seconds, this time loading the 
 gc config show | grep -A 4 'name = "backend"'
 ```
 
-You should see your `[[agent]]` block printed back, including `dir = "rss-reader"` and `prompt_template = "agents/backend/prompt.template.md"`. If the `dir` line is missing, double-check `pack.toml`.
+You should see your `[[agent]]` block printed back, including `dir = "rss-reader"` and `prompt_template = "agents/backend/prompt.template.md"`.
 
-### Sidebar: about `gc reload`
+<details>
+<summary><strong>Sidebar:</strong> what <code>gc reload</code> does (and why you do not need it)</summary>
 
-`gc reload` exists for forcing the controller to reread `pack.toml` and friends. You can run it now if you want, and it will report:
+`gc reload` forces the controller to reread `pack.toml` and friends. You can run it now and it will report:
 
 ```
 No config changes detected.
 ```
 
-That is not a failure. The controller runs an fsnotify watcher (see [GH#926](https://github.com/gastownhall/gascity/issues/926), closed) that picks up edits to `pack.toml` and prompt templates within milliseconds. By the time you run `gc reload`, the in-memory config already matches disk, so reload reports "no changes" because there is nothing to do.
+That is not a failure. The controller runs an fsnotify watcher ([GH#926](https://github.com/gastownhall/gascity/issues/926), closed) that picks up edits to `pack.toml` and prompt templates within milliseconds. By the time you run `gc reload`, the in-memory config already matches disk.
 
-When does `gc reload` actually matter?
+When `gc reload` actually matters: the watcher missed an edit, you are running in a sandbox without fsnotify, or you changed something the watcher does not see (env vars, remote pack contents). For the rest of this tutorial, treat it as a manual escape hatch. You should not need it.
 
-- The watcher missed an edit (unusual, mostly during bulk file moves).
-- You are running in a sandbox that disables fsnotify (CI, etc).
-- You changed something the watcher does not see (env vars, remote pack contents).
+`gc reload` does **not** restart running named sessions. It rebuilds the in-memory config; sessions keep their current prompt loaded. That is what `gc session kill` is for.
 
-For the rest of this tutorial, treat `gc reload` as a manual escape hatch. You should not need it. If you ever do see "Reload request could not be accepted because the controller is busy," that is a known race ([GH#1127](https://github.com/gastownhall/gascity/issues/1127)). Wait a couple of seconds and try again.
-
-Note that `gc reload` does **not** restart running named sessions. It rebuilds the in-memory config from disk; sessions keep their current prompt loaded. That is what `gc session kill` is for.
+</details>
 
 ## Step 7: Hand the mayor the first feature
-
-We send the mayor a feature request and let it route the work:
 
 ```bash
 gc handoff --target mayor "Feature: scaffold the rss-reader rig" "Please get the rss-reader rig set up. Initialize a Bun + Hono + bun:sqlite project at the rig root: package.json, tsconfig.json (strict + noUncheckedIndexedAccess), src/index.ts with a tiny Hono app exposing GET /health -> 'ok'. Open the bun:sqlite db at rss-reader/rss-reader.db (file does not need to exist yet; bun:sqlite will create it). bun install. Verify by booting the server briefly and curling /health. Commit inside the rig with the bead id in the subject. Close the bead."
 ```
 
-`gc handoff --target mayor` delivers the message and (for our always-on mayor) wakes the session if it has gone idle. Equivalent to `gc mail send mayor --notify -s "..." -m "..."` for our setup. Pick whichever you prefer; we use `gc handoff` throughout the rest of the tutorial because that is the idiomatic command for "deliver new feature context to a session."
+`gc handoff --target mayor` delivers the message and wakes the session if it has gone idle. For an always-on session it is equivalent to `gc mail send mayor --notify -s "..." -m "..."`. We use `gc handoff` throughout the rest of the tutorial as the idiomatic command for "deliver new feature context to a session."
 
 Watch the mayor work:
 
@@ -208,7 +202,7 @@ Watch the mayor work:
 gc session peek mayor
 ```
 
-You should see it run `gc mail check`, read the message, decide that this is a backend task, then run something like:
+You should see it run `gc mail check`, read the message, decide that this is a backend task, then sling something like:
 
 ```
 gc sling rss-reader/backend "Scaffold rss-reader: package.json, tsconfig.json, src/index.ts with Hono GET /health, bun install, verify and commit" --on mol-do-work
@@ -218,9 +212,9 @@ gc sling rss-reader/backend "Scaffold rss-reader: package.json, tsconfig.json, s
 
 1. Creates a new bead in the rig store (you will see something like `rr-lhv` in the output).
 2. Stamps `gc.routed_to = "rss-reader/backend"` on the bead as metadata.
-3. With `--on mol-do-work`, attaches the built-in `mol-do-work` formula to the bead so the spawned polecat follows a structured lifecycle.
+3. With `--on mol-do-work`, attaches the formula so the spawned polecat follows a structured lifecycle.
 
-Right after the sling, the reconciler notices a routed bead with no live session for that template, and it spawns one. You will see something like `rss-reader/backend-1` appear in `gc session list` shortly after. The `-1` is the instance number for that rig+agent pair.
+The reconciler notices a routed bead with no live session for that template and spawns one. You will see `rss-reader/backend-1` appear in `gc session list` shortly after. The `-1` is the instance number for that rig+agent pair.
 
 ## Step 8: Watch the polecat work
 
@@ -228,7 +222,7 @@ Right after the sling, the reconciler notices a routed bead with no live session
 gc session peek rss-reader/backend-1
 ```
 
-In a separate terminal, this is also a good time to start the overview helper that the rest of the tutorial uses. From the `city/` directory:
+In another terminal, set up the overview helper that the rest of the tutorial uses:
 
 ```bash
 mkdir -p ../bin
@@ -255,19 +249,15 @@ EOF
 chmod +x ../bin/overview.sh
 ```
 
-Then in another terminal:
-
 ```bash
 watch -n 3 bash ../bin/overview.sh
 ```
 
 You will see the bead appear in "RIG BEADS - OPEN" the moment the mayor slings it, then the polecat session show up in "SESSIONS" within seconds. A few minutes later, the bead disappears from open (closed by the polecat), a new commit shows up under "RIG COMMITS," and the session goes away as the polecat exits.
 
-The dashboard at `gc dashboard serve` would normally show all of this in a tidier UI. On my v1.0.0 run, the dashboard was entirely unresponsive: panels never loaded, the tab pinned a CPU. The closest matching report I found was [GH#1168](https://github.com/gastownhall/gascity/issues/1168) (fetch-flood from concurrent panel refreshes, closed), with the fix landed on main but not in any released tag yet. I cannot tell you with confidence that this is exactly what you will hit, so YMMV: try `gc dashboard serve` first, give it a minute, and if the panels populate cleanly, use it. The overview script in this chapter was my workaround when the dashboard would not work, not a recommendation against the dashboard itself. If `brew upgrade` lands a build with the cached-state fix, the dashboard is the better tool.
+The dashboard at `gc dashboard serve` would normally show all of this in a tidier UI. On my v1.0.0 run the dashboard was entirely unresponsive ([GH#1168](https://github.com/gastownhall/gascity/issues/1168), fix on main but not in any released tag yet). YMMV: try `gc dashboard serve` first; if the panels populate cleanly, use it. If not, the overview script is the fallback used throughout the rest of the tutorial.
 
 ## Step 9: Read the result
-
-The polecat ran `bd close rr-lhv` with a real summary of what it shipped. Confirm:
 
 ```bash
 cd ../rss-reader
@@ -275,15 +265,9 @@ bd show rr-lhv
 git --no-pager log --oneline
 ```
 
-You should see one commit, message like `rr-lhv: scaffold rss-reader (Bun + Hono + bun:sqlite)`. The rig now has:
+You should see one commit with a message like `rr-lhv: scaffold rss-reader (Bun + Hono + bun:sqlite)`. The rig now has `package.json`, `tsconfig.json`, `src/index.ts` with a tiny Hono app exposing `GET /health`, plus `bun.lock` (committed) and `node_modules/` (locally present, not committed).
 
-- `package.json` (with `hono` as a dependency)
-- `tsconfig.json` with strict TypeScript settings
-- `src/index.ts` with a tiny Hono app exposing `GET /health`
-- `bun.lock` (committed, not gitignored)
-- `node_modules/` (locally present, not committed)
-
-Boot it briefly to confirm:
+Boot it briefly:
 
 ```bash
 bun run src/index.ts &
@@ -293,30 +277,29 @@ echo
 kill %1
 ```
 
-You should see `ok`. The `kill %1` exits with `Terminated: 15` (SIGTERM); that is normal.
+You should see `ok`.
 
 ## What you saw extra in `bd list`
 
-When you watched `bd list` during the run, you may have noticed more beads than you expected. Slinging with `--on mol-do-work` creates extra bookkeeping beads alongside the work bead:
+Slinging with `--on mol-do-work` creates extra bookkeeping beads alongside the work bead:
 
-- A "sling" wrapper bead like `rr-XXX sling-rr-lhv`.
-- A `mol-do-work` parent bead with two child step beads (`Read assignment, implement, and close`; `Signal completion`).
+- A "sling" wrapper bead (e.g. `sling-rr-lhv`).
+- A `mol-do-work` parent bead with two child step beads.
 - The actual work bead (`rr-lhv`).
 
-This is the formula's expansion at runtime. The vocabulary for what each of these is (convoys, molecules, wisps) lands properly in Part 3, where we teach formulas as a primary concept. For now, treat the wrappers and the parent as runtime scaffolding. The bead you care about is the one with the title that matches your sling description.
+This is the formula's expansion at runtime. The vocabulary (convoys, molecules, wisps) lands properly in Part 3, where formulas are introduced as a primary concept. For now, treat the wrappers and the parent as runtime scaffolding. The bead you care about is the one whose title matches your sling description.
 
 ## Shape check
 
 - `pack.toml` has `[[agent]] name = "backend" dir = "rss-reader"`.
 - The mayor's prompt has a Dispatch section that mentions `gc sling`.
-- One commit in the rig (`rss-reader/`) with the bead id in the subject.
+- One commit in the rig with the bead id in the subject.
 - `bd show rr-lhv` shows status `closed` (your bead id will differ).
 - `curl http://localhost:3000/health` returns `ok`.
-- `gc status` shows `dog` and `mayor` only. Backend does not show up because no polecat is currently running, and that is correct.
 
 ## When your agent goes off-script
 
-- **First sling fails with `database not initialized: issue_prefix config is missing`.** Same v1.0.0 [GH#1232](https://github.com/gastownhall/gascity/issues/1232) bug from Part 1, but this time the rig's bd database (`rr`) is the one with the missing config row. The sling triggers the first `bd create` against the rig store. Fix from the city directory:
+- **First sling fails with `database not initialized: issue_prefix config is missing`.** Same v1.0.0 [GH#1232](https://github.com/gastownhall/gascity/issues/1232) bug from Part 1, but this time the rig's bd database (`rr`) is the one missing its config row. Fix from the city directory:
 
    ```bash
    cd .beads/dolt
@@ -327,14 +310,13 @@ This is the formula's expansion at runtime. The vocabulary for what each of thes
    cd ../..
    ```
 
-   `rr` is both the rig's bd database name and its bead prefix. After this, ask the mayor to retry the sling (`gc session submit mayor "Retry the previous sling, the rig store is fixed now"`), or sling the bead yourself if the mayor already created it.
+   Ask the mayor to retry the sling (`gc session submit mayor "Retry the previous sling"`).
 
-- **`gc sling rss-reader/backend ...` errors with "agent not found".** Check `dir = "rss-reader"` in `pack.toml`. Without it, `pack.toml` registers an unbound agent and the rig-prefixed sling target does not resolve.
-- **Backend polecat asks a clarifying question via mail and pauses.** This is the prompt working: when the bead description is ambiguous, the prompt instructs the agent to label the bead and stop rather than guess. Reply to the agent's mail directly (`gc mail reply <id> -s "..." -m "..." --notify`), or send the mayor a clarification and let it relay. The polecat resumes when it gets new input.
-- **The polecat runs `git add .`** instead of staging specific files, and accidentally commits something unwanted. Reset the commit (`git reset --soft HEAD~1`), unstage, recommit. Tighten the prompt's "stage specific files" rule and let it try again.
-- **Hook output is noisy.** The Claude Code session prints hook output (`gc nudge drain --inject`, `gc mail check --inject`) on every turn. This is fine. The hooks are how the session learns about new mail without auto-polling.
+- **`gc sling rss-reader/backend ...` errors with "agent not found".** Missing `dir = "rss-reader"` in `pack.toml`.
+- **Backend polecat asks a clarifying question via mail and pauses.** This is the prompt working: when the bead description is ambiguous, the prompt instructs the agent to label and stop rather than guess. Reply to the mayor with a clarification and let it relay.
 
-## Sidebar: hooks, briefly
+<details>
+<summary><strong>Sidebar:</strong> hooks (how Claude Code finds work without polling)</summary>
 
 `gc init` installed a `.gc/settings.json` in the city that wires Claude Code lifecycle events to GC commands. The four hooks you have are:
 
@@ -345,6 +327,10 @@ This is the formula's expansion at runtime. The vocabulary for what each of thes
 | `Stop` | `gc hook --inject` |
 | `PreCompact` | `gc handoff "context cycle"` (preserves state when context fills) |
 
-The two `UserPromptSubmit` hooks are the heart of "how the agent finds work without polling." On every turn boundary, Claude Code asks GC two questions: "is anything queued for me?" (the nudge drain) and "is there mail?" (the check). The answers flow into the agent's context as system messages, and the agent acts on them. This is why a session that never has a turn cannot pick up mail; nothing fires the hooks. It is also why the standard pattern is mail with `--notify`, which forces a wake.
+The two `UserPromptSubmit` hooks are the heart of "how the agent finds work without polling." On every turn boundary, Claude Code asks GC two questions: "is anything queued for me?" (the nudge drain) and "is there mail?" (the check). The answers flow into the agent's context as system messages, and the agent acts on them.
+
+This is why a session that never has a turn cannot pick up mail (nothing fires the hooks) and why the standard pattern is mail with `--notify`, which forces a wake.
+
+</details>
 
 In Part 3 we register two more specialists and let the mayor decompose a real feature into a small dependency chain.

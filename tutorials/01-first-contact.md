@@ -1,22 +1,17 @@
 # Part 1: First contact
 
-In Part 0 you initialized a city. The supervisor is running, the rig is registered, and the mayor exists as a "reserved" named session. In this chapter we wake the mayor up and have the first conversation with it.
+In Part 0 you initialized a city. In this chapter we wake the mayor up and have the first conversation with it.
 
 By the end:
 
 - You have written your own mayor prompt.
-- You wake the mayor and watch it boot.
-- You send it a message about the project. It reads, replies, and waits.
+- The mayor is awake and you have exchanged mail with it.
 
 Three Gas City concepts surface here: **agents** (the configured roles), **sessions** (a running instance of an agent), and **mail** (how you and the agents talk to each other).
 
 ## Why we replace the default mayor prompt
 
-`gc init` writes a default mayor prompt at `city/agents/mayor/prompt.template.md` that describes a generalist coordinator: plan, dispatch, manage. For this tutorial we want something tighter. Specifically, a **strict delegator**: a mayor that never writes code, never edits the rig, only routes work to specialists and replies to the human. There are two reasons for the strictness.
-
-First, the value of multi-agent orchestration is the lanes. If the mayor reaches into the rig itself when nobody is watching, the lanes blur, and you end up with a one-agent system in disguise. Strict-delegator prompts produce cleaner traces: you can read the rig's git history later and know exactly which specialist did what.
-
-Second, when a mayor is allowed to "just fix this small thing," it has a strong tendency to. Coding agents are good at coding, and the path of least resistance is to do the work. A hard-stop rule in the prompt is the simplest way to keep the role intact.
+`gc init` writes a generalist mayor prompt: plan, dispatch, manage. We want something tighter: a **strict delegator** that never writes code, only routes work to specialists and replies to the human. With a permissive mayor, the lanes blur and you end up with a one-agent system in disguise. A hard-stop "no code" rule keeps the role intact and produces cleaner traces in the rig's git history.
 
 ## Step 1: Write the mayor prompt
 
@@ -52,7 +47,7 @@ If unsure of exact flags, run `gc <cmd> --help`.
 Your agent name is `$GC_AGENT`.
 ```
 
-This prompt grows in later chapters as you add specialists and routing patterns. Right now it covers exactly what the mayor needs to do today.
+This prompt grows in later chapters as you add specialists and routing patterns.
 
 ## Step 2: Verify the compiled prompt
 
@@ -60,9 +55,7 @@ This prompt grows in later chapters as you add specialists and routing patterns.
 gc prime mayor
 ```
 
-`gc prime` shows what the agent will actually receive at session start, after any template directives are expanded. Our prompt has no `{{ ... }}` directives, so the output is identical to what you wrote. The exception worth knowing: if you later use `{{ template "..." }}` to include shared snippets, `gc prime` shows the expanded result, which is not the same as `cat`-ing the file.
-
-Re-read the output. If anything looks off, edit the file and run `gc prime` again. There is no reload step needed for prompt edits: the prompt file is read fresh every time a session starts.
+`gc prime` shows what the agent will actually receive at session start. Our prompt has no `{{ ... }}` template directives, so the output equals what you wrote. There is no reload step needed for prompt edits: the prompt file is read fresh every time a session starts.
 
 ## Step 3: Wake the mayor
 
@@ -76,9 +69,9 @@ Expected output:
 Session rt-18e: wake requested.
 ```
 
-The session id (`rt-18e` here, yours will differ) is a short random suffix on the city's prefix. You will see these prefixed ids throughout: `rt-` for city-scoped, `rr-` for rig-scoped (in our case the rig is `rss-reader`).
+The session id (`rt-18e` here, yours will differ) uses the city's `rt-` prefix. Beads in the rig will use `rr-`.
 
-If this command instead errors with `database not initialized: issue_prefix config is missing`, you are hitting [GH#1232](https://github.com/gastownhall/gascity/issues/1232), a v1.0.0 bd init bug where bd silently fails to write its `issue_prefix` config row during city init. Apply the fix directly to the city's bd database via dolt:
+If this errors with `database not initialized: issue_prefix config is missing`, you are hitting [GH#1232](https://github.com/gastownhall/gascity/issues/1232), a v1.0.0 bd init bug. Apply the fix directly to the city's bd database via dolt:
 
 ```bash
 cd .beads/dolt
@@ -89,13 +82,7 @@ dolt --use-db hq sql -q "
 cd ../..
 ```
 
-`hq` is the city's bd database name and `rt` is the city's bead prefix you have been seeing in session ids. After this, retry:
-
-```bash
-gc session wake mayor
-```
-
-By the time you read this the fix may have shipped, in which case the original error never appears and you can skip the workaround entirely.
+`hq` is the city's bd database name and `rt` is its bead prefix. Retry `gc session wake mayor`. If the fix has shipped by the time you read this, you never see the error.
 
 ## Step 4: Watch the mayor boot
 
@@ -103,21 +90,15 @@ By the time you read this the fix may have shipped, in which case the original e
 gc session peek mayor
 ```
 
-`gc session peek` shows the recent transcript of the named session. The mayor wakes inside its own tmux pane running Claude Code (or whichever provider you configured), reads its prompt, and follows the instructions in step 1 of the loop: `gc mail check`, `gc status`, then it posts a brief "ready" summary like:
+The mayor wakes inside its own tmux pane running Claude Code, reads its prompt, follows step 1 of the loop (`gc mail check`, `gc status`), and posts a brief ready summary like:
 
 > Mayor ready, standing by. Inbox is empty. No specialists registered yet.
 
-If you instead want to watch the live tmux pane, attach with:
-
-```bash
-gc session attach mayor
-```
-
-Detach with `Ctrl-b` then `d` (the standard tmux prefix sequence). **Do not** type `exit` inside the pane. Exit kills the session.
+To watch the live tmux pane instead, attach with `gc session attach mayor`. Detach with `Ctrl-b` then `d` (the tmux prefix sequence). **Do not** type `exit` inside the pane; that kills the session.
 
 ## Step 5: Send the first mail
 
-You are addressed as `human` for the purposes of mail. Send the mayor a message that explains the project, so it has context for everything that comes next:
+You are addressed as `human` for the purposes of mail. Send the mayor a message that explains the project:
 
 ```bash
 gc mail send mayor \
@@ -126,11 +107,22 @@ gc mail send mayor \
   --notify
 ```
 
-The `--notify` flag matters. Without it the mail bead is written but no recipient nudge is queued, and the mayor sits idle waiting for input it does not know to fetch. With `--notify`, the runtime queues a wake for the recipient as soon as the mail bead lands. Make `--notify` the default any time you mail an agent that might be sitting idle.
+`--notify` is what makes this work. Without it the mail bead is written but no recipient nudge is queued, and the mayor sits idle. With `--notify`, the runtime wakes the recipient as soon as the mail bead lands. **Default to `--notify` whenever you mail an agent that might be sitting idle.**
+
+<details>
+<summary><strong>Sidebar:</strong> why <code>--notify</code> matters (idle agents and how mail wakes them)</summary>
+
+Claude Code sessions check for new mail only when something triggers a hook. Hooks fire on `SessionStart`, `UserPromptSubmit`, `Stop`, and `PreCompact`. None of those fire on a fully idle session, so mail to an idle agent does not get processed unless something starts a turn.
+
+`--notify` on `gc mail send` (and `gc mail reply`) stamps a follow-up nudge that wakes the recipient as soon as the mail bead is durable. The fixes that made `--notify` reliable were [GH#1370](https://github.com/gastownhall/gascity/issues/1370) and [GH#1404](https://github.com/gastownhall/gascity/pull/1404), both closed.
+
+If you forget `--notify` and the recipient is idle, recover with `gc session submit mayor "Check your inbox"`. Default intent on `submit` wakes idle sessions and queues for in-turn ones; safe in either case. Avoid `--intent interrupt_now` for everyday use; it interrupts mid-turn work.
+
+</details>
 
 ## Step 6: Read the reply
 
-The mayor receives the mail, runs through its loop, and replies. Watch it:
+The mayor receives the mail, runs through its loop, replies. Watch:
 
 ```bash
 gc session peek mayor
@@ -140,66 +132,42 @@ You will see it execute `gc mail check`, `gc mail read <id>`, then `gc mail repl
 
 ```bash
 gc mail inbox human
-```
-
-You should see a single unread mail. Open it:
-
-```bash
 gc mail read <id>
 ```
 
-(The `<id>` shows up in the inbox listing.)
-
-Your reply is back. The mayor confirmed it understood the project, acknowledged it has no specialists yet, and outlined what would help in the next chapter (a backend agent for server work).
-
 ## Step 7: Or just attach and chat
 
-Mail is one way to talk to an agent. The other way, which is closer to what you are probably used to, is to attach to its tmux pane and type at it like a normal Claude Code session:
+Mail is one way to talk to an agent. The other way, closer to what you are used to, is to attach to its tmux pane and type at it like a normal Claude Code session:
 
 ```bash
 gc session attach mayor
 ```
 
-You land inside the mayor's tmux pane, looking at its Claude Code prompt. Type a message, hit return, watch it respond. Detach with `Ctrl-b` then `d` (the standard tmux prefix sequence). The mayor keeps running in the background.
+You land inside the mayor's pane, looking at its Claude Code prompt. Type a message, hit return, watch it respond. Detach with `Ctrl-b` then `d`.
 
-This works for **any** agent session, not just the mayor. Once the backend specialist exists in Part 2 and a polecat session has spawned (something like `rss-reader/backend-1` in `gc session list`), `gc session attach rss-reader/backend-1` drops you into that pane the same way. Want to ask a specialist a clarifying question without going through the mayor? Attach and chat. Want to review what the reviewer is looking at in real time? Attach and watch.
+This works for **any** agent session, not just the mayor. Once a polecat session has spawned in Part 2 (something like `rss-reader/backend-1`), `gc session attach rss-reader/backend-1` drops you into that pane the same way.
 
-So why use mail at all? Mail is what makes the orchestration shape work. When you mail the mayor, the mayor decides who handles it and routes the work; specialists run, commit, close beads, and the mayor reports back. The trace is durable: every message is a bead, every bead is queryable later. If you instead chat directly with each agent, you are doing the routing in your head. That is fine for a one-off question, but it skips the part of Gas City that is doing real work: the orchestration and the audit trail.
+So why use mail at all? Mail is what makes the orchestration shape work. When you mail the mayor, the mayor decides who handles it and routes the work; specialists run, commit, close beads, and the mayor reports back. The trace is durable: every message is a bead, queryable later. If you instead chat directly with each agent, you are doing the routing in your head. Fine for a one-off question, but it skips the part of Gas City that is doing real work.
 
-The pattern that lands well: **drive the project through mail, attach when you want to inspect or steer in the moment.** If you find yourself attaching all the time, the mayor's prompt probably needs to be tighter, not the mail pattern abandoned.
+The pattern that lands well: **drive the project through mail, attach when you want to inspect or steer in the moment.**
 
 ## What just happened, mechanically
 
 You wrote a prompt and saved it on disk. You waked a named session, which spawned a Claude Code instance inside a tmux pane managed by the supervisor. The session loaded your prompt as its system message. You sent a mail bead addressed to `mayor`; the runtime nudged the live session, the session's hook fired on next prompt submit, the agent saw a new mail in its check, read it, decided what to do, and used `gc mail reply` to write a new mail bead addressed back to `human`.
 
-Three primitives touched: agents (mayor is configured at `agents/mayor/prompt.template.md`), sessions (the live `mayor` instance is a named session because the default city has `[[named_session]] template = "mayor", mode = "always"` in `pack.toml`), and mail (every message is itself a small bead, queryable with `bd list`).
+Three primitives touched: agents (the mayor is configured at `agents/mayor/prompt.template.md`), sessions (the live `mayor` instance is a named session per `pack.toml`'s `[[named_session]] template = "mayor", mode = "always"`), and mail (every message is itself a small bead, queryable with `bd list`).
 
 ## Shape check
 
 - `agents/mayor/prompt.template.md` matches what you wrote.
 - `gc prime mayor` returns that prompt verbatim.
-- `gc session list` shows `mayor` as awake (or "active").
+- `gc session list` shows `mayor` as awake.
 - One mail you sent. One reply from the mayor in your `human` inbox.
 - The mayor's reply mentions specialists, the next chapter, or anything else that proves it actually read the project context.
 
 ## When your agent goes off-script
 
-- **The mayor "ready" summary never appears.** First, confirm `gc session peek mayor` shows real activity (commands being run). If the pane is sitting at an empty prompt, it might have hit the issue where idle sessions do not auto-poll: `gc session submit mayor "Check your inbox"` will wake it. The default intent on `submit` queues for in-turn sessions and wakes idle ones, so it is safe.
-- **The reply has the wrong subject (or `gc mail reply` failed).** Subject is required on reply; without `-s "..."` it errors. The prompt teaches this, but the agent may need a turn or two to get it right. If you see it fail, just let the loop run; it will retry.
-- **The mayor offers to write code anyway.** Reply with a short reminder of the rule: "Per your prompt, do not write code yourself. Acknowledge and stand by." The strict-delegator stance reasserts cleanly with one nudge.
-
-## Sidebar: idle agents and how mail actually wakes them
-
-Claude Code sessions only check for new mail when something triggers a hook. Hooks fire on `SessionStart`, `UserPromptSubmit`, `Stop`, and `PreCompact`. None of those fire on a fully idle session, so mail addressed to an idle agent does not get processed unless something starts a turn.
-
-`--notify` on `gc mail send` (and `gc mail reply`) is the runtime's solution. The send-side stamps a follow-up nudge that wakes the recipient as soon as the mail bead is durable. The chain of fixes that made `--notify` reliable was [GH#1370](https://github.com/gastownhall/gascity/issues/1370) plus [GH#1404](https://github.com/gastownhall/gascity/pull/1404), both closed. Older notes (and earlier states of `gc`) sometimes claimed `--notify` was unreliable; that was true in an intermediate state and is no longer.
-
-If you ever forget `--notify` on a send and the recipient is idle, recover with:
-
-```bash
-gc session submit mayor "Check your inbox"
-```
-
-`gc session submit` with default intent tells the runtime to wake an idle session or queue for an in-turn one. Avoid `--intent interrupt_now` for everyday use; it interrupts mid-turn work, which is rude to a working agent.
+- **The mayor "ready" summary never appears.** `gc session peek mayor` is sitting at an empty prompt, meaning the session went idle without acting on the mail. `gc session submit mayor "Check your inbox"` will wake it.
+- **The mayor offers to write code anyway.** Reply: "Per your prompt, do not write code yourself. Acknowledge and stand by." The strict-delegator stance reasserts cleanly with one nudge.
 
 In Part 2 we add a backend specialist and let the mayor route a real task to it.
