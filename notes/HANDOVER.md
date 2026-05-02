@@ -20,18 +20,19 @@ Stack: Bun + Hono + `bun:sqlite` + `hono/html` + HTMX + TypeScript. Five agents 
 | 3 Specialists at work | `chapter-3` | Done. dba and frontend registered, mayor's prompt updated to pre-route chains, feature delivered (HN-style index from hardcoded RSS feed). Three feature beads closed; four chapter commits in rig (scaffold, schema, ingest, render). |
 | 4 The review loop | `chapter-4` | Done (commit `8bd4e43`). Reviewer polecat registered with `provider = "codex"`. Domain-label feature delivered + reviewed + entity-encoded-titles defect filed and fixed end-to-end via the review loop. Reviewer ran on Codex; no auth surprises. Notification hook for stuck-polecat paging wired in `city/.gc/settings.json`. |
 | 5 Going live | `chapter-5` | Done. Three orders registered: cooldown ingest (`rss-fetch`), nightly cron VACUUM (`rss-vacuum`), 8am cron formula `rss-digest` dispatching a custom `mol-rss-digest` formula on a backend polecat that produces a real `digest.md`. `/digest` route shipped via mayor handoff to close the visible loop (rig commits `f528dd4` frontend + `d01b914` backend, `marked` dep). Notification hook removed (wrong primitive). Three structural gotchas surfaced: order scope follows file location, rigs need `formulas_dir`, formulas referenced by rig-scoped orders must live in the rig. |
-| 6 Capstone | not yet started | |
+| 6 Capstone | `chapter-6` | Done. Single mayor handoff produced full FTS5 search across all four lanes. Mayor decomposed into four predicted beads, then inserted a fifth (`rr-gq4`) mid-flight when an ingest gap surfaced. Reviewer ran isolated end-to-end testing on port 3001, filed two fix beads (`rr-etw` UX, `rr-brg` doc). Seven beads total, all closed. Wall clock 27 min. Two new gotchas: mail to polecats with no live session fails (use bead descriptions for context), and predicted four-bead decompositions can grow during execution without breaking. |
 
 ## Immediate next step
 
-Part 5 done and tagged. Three orders running, one custom formula, agent-generated `digest.md` committed in the rig and rendered at `/digest`. Part 6 ("Capstone: ship-it autonomously") is next: synthesis chapter, reader's own feature-request prompt, hybrid recommended-path + go-off-script narrative per the locked design. Per `project_tutorial_design.md`: "Reader gets one tested verbatim prompt as the recommended path, plus a 'go off-script' callout. Blog post embeds the actual transcript captured during the test run."
+**Test run complete.** All seven chapters tagged (`chapter-0` through `chapter-6`). Source notes in `notes/` cover Parts 0 through 6. Search works end to end, three orders ticking, agent-generated digest rendering at `/digest`.
 
-Plan for Part 6 features:
-- Recommended path (the verbatim prompt the reader runs): **search** with SQLite FTS5. Exercises dba (FTS virtual table + triggers), backend (query route), frontend (form + HTMX live results), reviewer. Real multi-specialist chain with a non-trivial dba migration, which is the dimension Part 5 did not stretch.
-- Go-off-script suggestions in the chapter sidebar: **per-source filter page** (`/source/:domain`, mostly backend + frontend, dba untouched) and **saved items** (dba migration + toggle route + star button + saved page). The user can pick either, or pitch their own, and the chapter shows what to expect either way.
+What is left to do:
 
-One carry-over still pending, deferred (not blocking Part 6):
-- The alert primitive for stuck-on-permission polecats. Notification hook removed in Part 5 with no replacement; the gap is captured here for a later session.
+1. **Write the seven markdown chapters in `tutorials/`** from the source notes. Production workflow per `project_tutorial_design.md` is test-then-write, and we are now in the write phase. The notes are the input; CommonMark markdown chapters per chapter are the output. Voice rules from `feedback_writing_style.md` apply (no em dashes, no LLM tells).
+2. **Reflect Part 5 honestly in the Part 4 chapter writeup.** The Notification hook was introduced in Part 4 and removed in Part 5 because it was the wrong primitive (idle pings flooded the human inbox). Part 4's chapter cannot present the hook as the answer. It either gets honest about the rethink or removes the hook section entirely; my lean is honest-about-the-rethink, because the failure mode is itself instructive.
+3. **Decide what to do about the alert-primitive gap.** Notification hook gone, no replacement. Options for the chapter writeups: (a) leave it as an honest open question in Part 5's "still open" section, (b) propose a candidate (osascript native notification, terminal bell, webhook) and call it future work, (c) build one before publishing. My lean is (a) for the blog series and (b) as a follow-up post if the reaction wants it.
+4. **Cosmetic: improve `mol-rss-digest` to close the parent molecule, not just the step bead.** One-line follow-up; not blocking publish.
+5. **Re-check the dashboard if `brew upgrade` lands a v1.0.x newer than 2026-04-27.** Could change the recommended overview tooling for the chapter.
 
 ## What just happened (Part 3 outcome)
 
