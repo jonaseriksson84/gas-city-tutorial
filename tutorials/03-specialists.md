@@ -284,20 +284,21 @@ You have used `--on mol-do-work` four times now. Time to look at what it is.
 
 ### The formula
 
-`mol-do-work` is a **formula**: a TOML file that describes a small lifecycle a polecat follows. It ships with Gas City and looks roughly like:
+`mol-do-work` is a **formula**: a TOML file that describes a small lifecycle a polecat follows. It ships with Gas City at `internal/bootstrap/packs/core/formulas/mol-do-work.toml` and looks roughly like:
 
 ```toml
 formula = "mol-do-work"
+version = 1
 
 [[steps]]
-id = "implement"
+id = "do-work"
 title = "Read assignment, implement, and close"
 description = "..."
 
 [[steps]]
 id = "drain"
 title = "Signal completion"
-needs = ["implement"]
+needs = ["do-work"]
 description = "gc runtime drain-ack"
 ```
 

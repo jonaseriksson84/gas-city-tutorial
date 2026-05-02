@@ -46,7 +46,7 @@ prompt_template = "agents/backend/prompt.template.md"
 
 The `dir = "rss-reader"` makes this a rig-scoped specialist. When you sling work to `rss-reader/backend`, the spawned session's working directory will be `rss-reader/`, and `bd` calls will operate on the rig's bead store.
 
-Yes, `dir` is now in both `agent.toml` (written by `--dir`) and `pack.toml` (added here). The `pack.toml` one is the source of truth; `agent.toml`'s `dir` does not propagate into the resolved config in this build. Without the `dir` line in `pack.toml`, `gc sling rss-reader/backend <bead>` errors with `agent 'rss-reader/backend' not found in city.toml`.
+Yes, `dir` is now in both `agent.toml` (written by `--dir`) and `pack.toml` (added here). The `pack.toml` one is the source of truth; `agent.toml`'s `dir` does not propagate into the resolved config in this build. Without the `dir` line in `pack.toml`, `gc sling rss-reader/backend <bead>` errors with `agent "rss-reader/backend" not found in city.toml; did you mean "rss-reader/claude"?` (the error refers to `city.toml` because `pack.toml` is loaded into `city.toml`'s resolved view; the `claude` suggestion is a fallback generic worker, not what you want).
 
 `gc doctor` may also warn about `v2-agent-format`. That is [GH#1175](https://github.com/gastownhall/gascity/issues/1175), a known false positive. Schema=2 `pack.toml` with `[[agent]]` blocks is the intended layout. Ignore it.
 

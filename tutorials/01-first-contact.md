@@ -69,7 +69,7 @@ Expected output:
 Session rt-18e: wake requested.
 ```
 
-The session id (`rt-18e` here, yours will differ) uses the city's `rt-` prefix. Beads in the rig will use `rr-`.
+The session id (`rt-18e` here, yours will differ) uses the city's bead prefix. Prefixes are derived from city and rig names by taking the first letter of each hyphen-separated part: `rss-tutorial` becomes `rt`, `rss-reader` becomes `rr`. So beads in the city are `rt-XXX` and beads in the rig are `rr-XXX`. If you named your city or rig differently, the prefixes will be different.
 
 If this errors with `database not initialized: issue_prefix config is missing`, you are hitting [GH#1232](https://github.com/gastownhall/gascity/issues/1232), a v1.0.0 bd init bug. Apply the fix directly to the city's bd database via dolt:
 
