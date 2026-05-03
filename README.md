@@ -1,23 +1,31 @@
 # Gas City RSS Tutorial
 
-Companion repo for a tutorial series that teaches Gas City by building a minimalist Hacker-News-style RSS aggregator. The reader configures agents and steers them; the agents write the app.
+Companion repo for a seven-part tutorial that teaches Gas City by building a minimal Hacker-News-style RSS aggregator. You write the configs and steer the agents; the agents write the app.
+
+## Start here
+
+The tutorial chapters live in `tutorials/`. Start with `tutorials/00-setup.md`.
 
 ## Layout
 
 | Path | What lives here |
 |---|---|
-| `design/` | The locked design doc. Read this first if you want context on the choices behind the tutorial. |
-| `notes/` | Running notes captured during the test run. Raw transcripts, command output, observed failure modes. |
-| `city/` | The Gas City workspace. Populated by `gc init` in Part 0. |
-| `rss-reader/` | The rig the agents build. Registered with the city via `gc rig add`. |
-| `tutorials/` | The seven markdown chapters. Written from `notes/` after the test run completes. |
+| `tutorials/` | The seven chapters. Each is self-contained. |
+| `city/` | The Gas City workspace (configs, agent prompts, orders). |
+| `rss-reader/` | The rig the agents build. Its own git repo, gitignored here. |
+| `design/` | The design doc with rationale for every architectural choice. |
+| `notes/` | Raw notes from the test run: observed output, failure modes. |
 
-## Status
+## Recovery
 
-Design phase complete. Test run not yet started. No tutorial chapters written.
+Tags `chapter-0` through `chapter-6` mark the end-of-chapter state. If you fall behind, check out the matching tag to restore a known-good city config:
 
-## How the chapters relate to this repo
+```bash
+git checkout chapter-N -- city/
+```
 
-Each chapter is self-contained. You should not need to dig into this repo while following along; the markdown holds every config and command verbatim. The repo is a recovery aid only.
+The chapters are self-contained; you should not need to dig into this repo while following along. It is a recovery aid.
 
-Tags `chapter-0` through `chapter-6` mark the end-of-chapter state once each part is verified. If you fall behind during the tutorial, `git checkout chapter-N -- city-reference/` snaps the city configs to a known-good state.
+## What you build
+
+A small Bun + Hono app with SQLite storage, FTS5 search, and a daily AI-written digest. Five agents collaborate: a mayor, a backend specialist, a DBA, a frontend specialist, and a code reviewer. Three scheduled jobs handle feed ingestion, database pruning, and digest generation.
